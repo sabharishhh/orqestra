@@ -1,0 +1,14 @@
+from openai import OpenAI
+import orqestra.sdk as orqestra
+
+# 1. Initialize with their System UUID (from FastAPI /systems endpoint)
+orqestra.init(system_id="123e4567-e89b-12d3-a456-426614174000")
+
+# 2. Initialize OpenAI normally
+client = OpenAI()
+
+# 3. Wrap it
+client = orqestra.wrap_openai(client)
+
+# Everything else runs exactly as normal.
+response = client.chat.completions.create(...)
