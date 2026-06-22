@@ -1,0 +1,25 @@
+# 1. Create all directories
+mkdir -p orqestra/{probes,healthtrack,api/routers,workers,services,models,core,sdk,tests}
+
+# 2. Create Phase 0 root files
+mkdir -p orqestra/{probes,healthtrack,api/routers,workers,services,models,core,sdk,tests}
+
+# 3. Create Probes and Healthtrack files
+touch orqestra/probes/{healthcare.json,general.json,finance.json,saas.json}
+touch orqestra/healthtrack/{__init__.py,knowledge_bases.py,agents.py,pipeline.py,scenarios.py}
+
+# 4. Create Phase 1 API files
+touch orqestra/api/{__init__.py,main.py,auth.py}
+touch orqestra/api/routers/{systems.py,samples.py,contradictions.py,entities.py,graph.py,resolutions.py,roi.py}
+
+# 5. Create Phase 1 Worker files
+touch orqestra/workers/{__init__.py,claim_extractor.py,sccg_writer.py,obg_updater.py,contradiction_detector.py,resolution_agent.py,auto_induction.py,coherence_scorer.py,alert_dispatcher.py,feedback_collector.py}
+
+# 6. Create Phase 1 Services files
+touch orqestra/services/{__init__.py,pii_scrubber.py,embedder.py,nli_classifier.py,content_hasher.py,vector_clock.py,lca_computer.py,coherence_calculator.py}
+
+# 7. Create Phase 1 Models, Core, and SDK files
+touch orqestra/models/{__init__.py,database.py}
+touch orqestra/core/{__init__.py,config.py,database.py,celery_app.py}
+touch orqestra/sdk/{__init__.py,client.py,wrappers.py,batch_logger.py}
+touch orqestra/tests/{test_content_hasher.py,test_contradiction_utils.py}

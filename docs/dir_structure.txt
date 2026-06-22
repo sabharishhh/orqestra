@@ -1,0 +1,69 @@
+orqestra/
+├── demo.py                          # Phase 0 entry point[cite: 4, 6]
+├── main.py                          # Phase 0 CLI / Phase 1 API start[cite: 4, 6]
+├── output_collector.py              # Phase 0 Module 1[cite: 4]
+├── claim_extractor.py               # Phase 0 Module 2[cite: 4]
+├── embedder.py                      # Phase 0 Module 3[cite: 4]
+├── contradiction_detector.py        # Phase 0 Module 4[cite: 4]
+├── explainer.py                     # Phase 0 Module 5[cite: 4]
+├── reporter.py                      # Phase 0 Module 6[cite: 4]
+├── requirements-phase0.txt          # Phase 0 dependencies[cite: 4]
+├── probes/                          # Domain-specific probe questions[cite: 4]
+│   ├── healthcare.json
+│   ├── general.json
+│   ├── finance.json
+│   └── saas.json
+├── healthtrack/                     # Internal multi-agent reference system[cite: 2, 4, 6]
+│   ├── __init__.py
+│   ├── knowledge_bases.py
+│   ├── agents.py
+│   ├── pipeline.py
+│   └── scenarios.py
+├── api/                             # Phase 1: FastAPI Backend[cite: 6]
+│   ├── __init__.py
+│   ├── main.py
+│   ├── auth.py
+│   └── routers/
+│       ├── systems.py
+│       ├── samples.py
+│       ├── contradictions.py
+│       ├── entities.py
+│       ├── graph.py
+│       ├── resolutions.py
+│       └── roi.py
+├── workers/                         # Phase 1: Celery Async Workers[cite: 6]
+│   ├── __init__.py
+│   ├── claim_extractor.py
+│   ├── sccg_writer.py
+│   ├── obg_updater.py
+│   ├── contradiction_detector.py
+│   ├── resolution_agent.py
+│   ├── auto_induction.py
+│   ├── coherence_scorer.py
+│   ├── alert_dispatcher.py
+│   └── feedback_collector.py
+├── services/                        # Phase 1: Core Logic & Services[cite: 6]
+│   ├── __init__.py
+│   ├── pii_scrubber.py
+│   ├── embedder.py
+│   ├── nli_classifier.py
+│   ├── content_hasher.py
+│   ├── vector_clock.py
+│   ├── lca_computer.py
+│   └── coherence_calculator.py
+├── models/                          # Phase 1: SQLAlchemy Models[cite: 6]
+│   ├── __init__.py
+│   └── database.py
+├── core/                            # Phase 1: Config & Connectors[cite: 6]
+│   ├── __init__.py
+│   ├── config.py
+│   ├── database.py
+│   └── celery_app.py
+├── sdk/                             # Phase 1: Python SDK[cite: 6]
+│   ├── __init__.py
+│   ├── client.py
+│   ├── wrappers.py
+│   └── batch_logger.py
+└── tests/                           # Testing Suite[cite: 3, 5]
+    ├── test_content_hasher.py
+    └── test_contradiction_utils.py

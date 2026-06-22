@@ -1,0 +1,16 @@
+[project]
+name = "orqestra"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "celery>=5.6.3",
+    "numpy>=2.5.0",
+    "openai>=2.43.0",
+    "python-dotenv>=1.2.2",
+    "redis>=8.0.0",
+    "rich>=15.0.0",
+    "tenacity>=9.1.4",
+    "tqdm>=4.68.3",
+]
