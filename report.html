@@ -57,22 +57,232 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Active Conflicts Captured</div>
-                    <div class="stat-value">0 Factual Mismatches</div>
+                    <div class="stat-value">6 Factual Mismatches</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Aggregated Financial Exposure</div>
-                    <div class="stat-value at-risk-highlight">$0</div>
+                    <div class="stat-value at-risk-highlight">$1,000–$15,000 (Operational/Customer Disruption)</div>
                 </div>
             </div>
         </header>
 
         <div class="grid-summary">
-            <div class="pill-box" style="border-top: 4px solid #ef4444;">CRITICAL: 0</div>
+            <div class="pill-box" style="border-top: 4px solid #ef4444;">CRITICAL: 6</div>
             <div class="pill-box" style="border-top: 4px solid #f97316;">HIGH: 0</div>
             <div class="pill-box" style="border-top: 4px solid #eab308;">MEDIUM: 0</div>
             <div class="pill-box" style="border-top: 4px solid #22c55e;">LOW: 0</div>
         </div>
 
+        <div class="card">
+            <div class="card-header sev-critical">
+                <span>⚠️ [CRITICAL] Entity Context Collision: clinical</span>
+                <span>Affinity Match: 0.88</span>
+            </div>
+            <div class="card-body">
+                <div class="section-title">Atomic Extracted Claims Matrix</div>
+                <div class="system-title">🖥️ ClinicalGuidelinesAgent asserted:</div>
+                <div class="evidence-box">"Metformin is contraindicated in patients with an eGFR below 30 mL/min"</div>
+                
+                <div class="system-title">🖥️ MedicationReviewAgent asserted:</div>
+                <div class="evidence-box">"Metformin is contraindicated if eGFR is below 45 mL/min"</div>
+        
+                <div class="section-title">Analytical Structural Summary</div>
+                <strong>Analytical Diagnosis:</strong> System A says metformin should not be used only when eGFR is below 30, while System B says it should not be used below 45. Those cannot both be the rule because they give different cutoff points for the same medication and patient group.<br><br>
+                <strong>Operational Asset Risk:</strong> <span style="color: #ef4444; font-weight: bold;">If the higher cutoff is followed, patients may be denied metformin unnecessarily, leading to worse diabetes control and avoidable treatment changes.</span><br><br>
+                <strong>Causal Source Attribution:</strong> Out-of-date baseline targets detected in <u>B</u>. System B is likely outdated because the stricter 45 cutoff conflicts with the more current 30 cutoff used in many clinical guidelines.<br><br>
+                <strong>Quantified Cost-At-Risk Projection:</strong> <span style="color: #16a34a; font-weight: bold;">$300,000–$500,000 (malpractice exposure)</span>
+                
+                <div class="section-title">Enforced Remediation Directive</div>
+                <div class="remediation">🛠️ Action Recommended: Update System B to use the current eGFR cutoff for metformin and add a guideline source check before publishing medication rules.</div>
+                
+                <div class="section-title">Raw Microservice Raw Evidence Logs</div>
+                <details>
+                    <summary>View System A Original Context Trace</summary>
+                    <div class="details-content">none</div>
+                </details>
+                <details>
+                    <summary>View System B Original Context Trace</summary>
+                    <div class="details-content">due to lactic acidosis risk</div>
+                </details>
+            
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header sev-critical">
+                <span>⚠️ [CRITICAL] Entity Context Collision: clinical</span>
+                <span>Affinity Match: 0.68</span>
+            </div>
+            <div class="card-body">
+                <div class="section-title">Atomic Extracted Claims Matrix</div>
+                <div class="system-title">🖥️ InsuranceCoverageAgent asserted:</div>
+                <div class="evidence-box">"GLP-1 receptor agonists require prior authorization and a documented 6-month failure of generic step therapy"</div>
+                
+                <div class="system-title">🖥️ ClinicalGuidelinesAgent asserted:</div>
+                <div class="evidence-box">"GLP-1 receptor agonists are considered first-line therapy"</div>
+        
+                <div class="section-title">Analytical Structural Summary</div>
+                <strong>Analytical Diagnosis:</strong> System A says GLP-1 drugs need prior approval and a 6-month failure of cheaper step therapy, which means they are not immediately available. System B says GLP-1 drugs are first-line therapy for Type 2 Diabetes, which means they should be used first without that delay. Both cannot be true for the same patient and condition at the same time.<br><br>
+                <strong>Operational Asset Risk:</strong> <span style="color: #ef4444; font-weight: bold;">If System A is used, patients may be wrongly delayed or denied an appropriate treatment, leading to worse diabetes control and avoidable complications.</span><br><br>
+                <strong>Causal Source Attribution:</strong> Out-of-date baseline targets detected in <u>A</u>. System B matches current clinical guidance for Type 2 Diabetes more closely, while System A sounds like an older insurance policy rule.<br><br>
+                <strong>Quantified Cost-At-Risk Projection:</strong> <span style="color: #16a34a; font-weight: bold;">$300,000–$500,000 (malpractice exposure)</span>
+                
+                <div class="section-title">Enforced Remediation Directive</div>
+                <div class="remediation">🛠️ Action Recommended: Update the insurance rules to distinguish clinical first-line guidance from coverage requirements and align prior authorization criteria with current Type 2 Diabetes guidelines.</div>
+                
+                <div class="section-title">Raw Microservice Raw Evidence Logs</div>
+                <details>
+                    <summary>View System A Original Context Trace</summary>
+                    <div class="details-content">none</div>
+                </details>
+                <details>
+                    <summary>View System B Original Context Trace</summary>
+                    <div class="details-content">for Type 2 Diabetes</div>
+                </details>
+            
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header sev-critical">
+                <span>⚠️ [CRITICAL] Entity Context Collision: clinical</span>
+                <span>Affinity Match: 0.81</span>
+            </div>
+            <div class="card-body">
+                <div class="section-title">Atomic Extracted Claims Matrix</div>
+                <div class="system-title">🖥️ InsuranceCoverageAgent asserted:</div>
+                <div class="evidence-box">"GLP-1 receptor agonists require prior authorization and a documented 6-month failure of generic step therapy"</div>
+                
+                <div class="system-title">🖥️ ClinicalGuidelinesAgent asserted:</div>
+                <div class="evidence-box">"GLP-1 receptor agonists do not require prior step therapy"</div>
+        
+                <div class="section-title">Analytical Structural Summary</div>
+                <strong>Analytical Diagnosis:</strong> System A says GLP-1 drugs need prior approval and a 6-month failure of cheaper drugs first. System B says they do not need that step therapy for Type 2 Diabetes. Both cannot be true for the same coverage rule because one requires a gate that the other removes.<br><br>
+                <strong>Operational Asset Risk:</strong> <span style="color: #ef4444; font-weight: bold;">If this is wrong, patients may be told a drug is covered when it is actually denied, causing treatment delays and unexpected out-of-pocket costs.</span><br><br>
+                <strong>Causal Source Attribution:</strong> Out-of-date baseline targets detected in <u>B</u>. System B is narrower and appears to reflect a clinical guideline statement rather than the current insurance coverage rule, so it is more likely missing payer requirements.<br><br>
+                <strong>Quantified Cost-At-Risk Projection:</strong> <span style="color: #16a34a; font-weight: bold;">$300,000–$500,000 (malpractice exposure)</span>
+                
+                <div class="section-title">Enforced Remediation Directive</div>
+                <div class="remediation">🛠️ Action Recommended: Update the clinical guidance output to include payer-specific prior authorization and step therapy requirements for GLP-1 coverage.</div>
+                
+                <div class="section-title">Raw Microservice Raw Evidence Logs</div>
+                <details>
+                    <summary>View System A Original Context Trace</summary>
+                    <div class="details-content">none</div>
+                </details>
+                <details>
+                    <summary>View System B Original Context Trace</summary>
+                    <div class="details-content">for Type 2 Diabetes</div>
+                </details>
+            
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header sev-critical">
+                <span>⚠️ [CRITICAL] Entity Context Collision: clinical</span>
+                <span>Affinity Match: 0.79</span>
+            </div>
+            <div class="card-body">
+                <div class="section-title">Atomic Extracted Claims Matrix</div>
+                <div class="system-title">🖥️ MedicationReviewAgent asserted:</div>
+                <div class="evidence-box">"ACE inhibitors must be taken with food"</div>
+                
+                <div class="system-title">🖥️ DischargeAgent asserted:</div>
+                <div class="evidence-box">"ACE inhibitors must be administered to the patient on an empty stomach"</div>
+        
+                <div class="section-title">Analytical Structural Summary</div>
+                <strong>Analytical Diagnosis:</strong> System A says ACE inhibitors should be taken with food, while System B says they must be taken on an empty stomach. Those instructions cannot both be true at the same time because they tell the patient to do opposite things when taking the same medicine.<br><br>
+                <strong>Operational Asset Risk:</strong> <span style="color: #ef4444; font-weight: bold;">If the wrong instruction is followed, the patient may take the medicine incorrectly, which can reduce adherence and increase the chance of side effects or poor blood pressure control.</span><br><br>
+                <strong>Causal Source Attribution:</strong> Out-of-date baseline targets detected in <u>A</u>. System A is more likely outdated because ACE inhibitors are generally not required to be taken with food, and the food instruction appears to be an incorrect safety claim.<br><br>
+                <strong>Quantified Cost-At-Risk Projection:</strong> <span style="color: #16a34a; font-weight: bold;">$300,000–$500,000 (malpractice exposure)</span>
+                
+                <div class="section-title">Enforced Remediation Directive</div>
+                <div class="remediation">🛠️ Action Recommended: Replace the conflicting instruction with a single pharmacy-approved dosing guideline and update both systems from the same clinical source.</div>
+                
+                <div class="section-title">Raw Microservice Raw Evidence Logs</div>
+                <details>
+                    <summary>View System A Original Context Trace</summary>
+                    <div class="details-content">to prevent severe GI distress</div>
+                </details>
+                <details>
+                    <summary>View System B Original Context Trace</summary>
+                    <div class="details-content">to ensure maximum absorption</div>
+                </details>
+            
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header sev-critical">
+                <span>⚠️ [CRITICAL] Entity Context Collision: clinical</span>
+                <span>Affinity Match: 0.94</span>
+            </div>
+            <div class="card-body">
+                <div class="section-title">Atomic Extracted Claims Matrix</div>
+                <div class="system-title">🖥️ IntakeAgent asserted:</div>
+                <div class="evidence-box">"patient fasting window is 8 hours"</div>
+                
+                <div class="system-title">🖥️ ClinicalGuidelinesAgent asserted:</div>
+                <div class="evidence-box">"patient fasting window is 12 hours"</div>
+        
+                <div class="section-title">Analytical Structural Summary</div>
+                <strong>Analytical Diagnosis:</strong> Both systems give different fasting instructions for the same metabolic lab panels: one says 8 hours and the other says 12 hours. They cannot both be correct because a patient can only follow one fasting window, and the difference changes how the test is prepared.<br><br>
+                <strong>Operational Asset Risk:</strong> <span style="color: #ef4444; font-weight: bold;">If the wrong fasting window is used, lab results may be inaccurate and could lead to missed diagnoses or unnecessary repeat testing.</span><br><br>
+                <strong>Causal Source Attribution:</strong> Out-of-date baseline targets detected in <u>A</u>. System B is more likely current because clinical guidelines typically define the stricter fasting requirement, while System A appears to have a shorter, potentially outdated instruction.<br><br>
+                <strong>Quantified Cost-At-Risk Projection:</strong> <span style="color: #16a34a; font-weight: bold;">$300,000–$500,000 (malpractice exposure)</span>
+                
+                <div class="section-title">Enforced Remediation Directive</div>
+                <div class="remediation">🛠️ Action Recommended: Update the intake instructions to match the current clinical guideline and verify the fasting requirement with the lab owner before use.</div>
+                
+                <div class="section-title">Raw Microservice Raw Evidence Logs</div>
+                <details>
+                    <summary>View System A Original Context Trace</summary>
+                    <div class="details-content">for metabolic lab panels</div>
+                </details>
+                <details>
+                    <summary>View System B Original Context Trace</summary>
+                    <div class="details-content">for metabolic lab panels</div>
+                </details>
+            
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header sev-critical">
+                <span>⚠️ [CRITICAL] Entity Context Collision: clinical</span>
+                <span>Affinity Match: 0.87</span>
+            </div>
+            <div class="card-body">
+                <div class="section-title">Atomic Extracted Claims Matrix</div>
+                <div class="system-title">🖥️ InsuranceCoverageAgent asserted:</div>
+                <div class="evidence-box">"Lisinopril has a maximum approved daily coverage limit of 40mg"</div>
+                
+                <div class="system-title">🖥️ MedicationReviewAgent asserted:</div>
+                <div class="evidence-box">"Lisinopril has a maximum daily dose of 80mg"</div>
+        
+                <div class="section-title">Analytical Structural Summary</div>
+                <strong>Analytical Diagnosis:</strong> System A says lisinopril should not exceed 40 mg per day, while System B says it can go up to 80 mg per day. Both cannot be correct because they give different maximum daily limits for the same medication, which would lead to different dosing decisions.<br><br>
+                <strong>Operational Asset Risk:</strong> <span style="color: #ef4444; font-weight: bold;">If the higher limit is used, a patient could be prescribed too much lisinopril, increasing the risk of dangerous low blood pressure, kidney problems, or high potassium.</span><br><br>
+                <strong>Causal Source Attribution:</strong> Out-of-date baseline targets detected in <u>B</u>. System B is more likely outdated because 80 mg is above the commonly accepted maximum daily dose for lisinopril, while 40 mg is the standard upper limit.<br><br>
+                <strong>Quantified Cost-At-Risk Projection:</strong> <span style="color: #16a34a; font-weight: bold;">$300,000–$500,000 (malpractice exposure)</span>
+                
+                <div class="section-title">Enforced Remediation Directive</div>
+                <div class="remediation">🛠️ Action Recommended: Update the medication reference used by System B to the current approved lisinopril maximum dose and block any dose recommendations above that limit.</div>
+                
+                <div class="section-title">Raw Microservice Raw Evidence Logs</div>
+                <details>
+                    <summary>View System A Original Context Trace</summary>
+                    <div class="details-content">none</div>
+                </details>
+                <details>
+                    <summary>View System B Original Context Trace</summary>
+                    <div class="details-content">none</div>
+                </details>
+            
+            </div>
+        </div>
+        
     </div>
 </body>
 </html>

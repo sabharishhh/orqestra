@@ -6,17 +6,17 @@ to test the Phase 0 pipeline's detection funnel.
 
 INTAKE_KB = """
 The Intake system records the following operational protocols for patient onboarding:
-- The standard patient fasting window required for metabolic lab panels is exactly 8 hours.
+- The mandatory patient fasting window for metabolic lab panels is exactly 8 hours.
 - Patient eGFR baseline is established immediately at admission.
 - Standard intake demographic verification takes 5 minutes.
 """
 
 GUIDELINES_KB = """
 Clinical guidelines for metabolic and renal management (updated 2025):
-- The patient fasting window required for metabolic lab panels must be strictly 12 hours.
+- The mandatory patient fasting window for metabolic lab panels is exactly 12 hours.
+- The required post-discharge follow-up appointment for high-risk renal patients must be scheduled exactly 7 days after release.
 - Metformin is contraindicated in patients with an eGFR below 30 mL/min.
 - For Type 2 Diabetes, GLP-1 receptor agonists are considered first-line therapy and do not require prior step therapy.
-- Post-discharge follow-up for high-risk renal patients must occur within 7 days of release.
 """
 
 MEDICATION_KB = """
@@ -36,7 +36,7 @@ Insurance coverage, billing, and formulary policies:
 
 DISCHARGE_KB = """
 Discharge planning and patient instruction protocols:
-- Post-discharge follow-up for high-risk renal patients is to be scheduled within 14 days of release to prevent readmission.
+- The required post-discharge follow-up appointment for high-risk renal patients must be scheduled exactly 14 days after release.
 - All ACE inhibitors must be administered to the patient on an empty stomach to ensure maximum absorption.
 - Discharge summaries are routed to the primary care provider within 24 hours.
 """

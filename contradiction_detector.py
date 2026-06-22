@@ -3,7 +3,7 @@ import uuid
 import logging
 from typing import List, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 from openai import OpenAI
 from output_collector import SystemConfig, RETRYABLE_EXCEPTIONS
@@ -108,7 +108,7 @@ def classify_pair(
 ) -> Optional[Contradiction]:
     """
     Step 2 & 3: Deep NLI Evaluation
-    Queries gpt-5.4-mini to inspect logical overlap and structural conflict.
+    Queries gpt-4o-mini to inspect logical overlap and structural conflict.
     """
     client_kwargs = {"api_key": config.api_key}
     if config.base_url:
@@ -116,8 +116,15 @@ def classify_pair(
 
     client = OpenAI(**client_kwargs)
     
-    # Use the specific entity hint extracted from the claims (defaulting to general)
-    entity_hint = pair.claim_a.claim.entity_hint if pair.claim_a.claim.entity_hint else "general"
+    # FIX: Dynamically map the Context/Domain Hint using the participating System Names.
+    # This prevents the AttributeError and ensures the risk-matrix assigns financial metrics properly.
+    sys_context = f"{system_a_name} {system_b_name}".lower()
+    if "clinical" in sys_context or "medication" in sys_context or "discharge" in sys_context or "intake" in sys_context:
+        entity_hint = "clinical"
+    elif "insurance" in sys_context:
+        entity_hint = "policy"
+    else:
+        entity_hint = getattr(pair.claim_a.claim, "subject", "general")
 
     # Exact verbatim prompt structure required by the specification
     nli_user_prompt = f"""Statement A (from {system_a_name}): "{pair.claim_a.claim.subject} {pair.claim_a.claim.predicate} {pair.claim_a.claim.obj}"
@@ -138,7 +145,7 @@ Return ONLY JSON:
 
     try:
         response = client.chat.completions.create(
-            model=config.model if config.model else "gpt-5.4-mini",
+            model=config.model if config.model else "gpt-4o-mini",
             messages=[
                 {"role": "system", "content": NLI_SYSTEM_PROMPT},
                 {"role": "user", "content": nli_user_prompt}
@@ -168,7 +175,7 @@ Return ONLY JSON:
                 contradiction_score=score,
                 severity=severity,
                 label="contradiction",
-                detected_at=datetime.utcnow()
+                detected_at=datetime.now(timezone.utc)
             )
             
         return None
