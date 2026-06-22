@@ -1,9 +1,9 @@
 """
-Orqestra HealthTrack Benchmark Scenarios
+Orqestra Benchmark Scenarios
 """
 
-DIABETES_RENAL_SCENARIO = {
-    "scenario_id": "HT-BENCH-001",
-    "description": "A complex Type 2 Diabetes patient with declining renal function (eGFR 38), currently prescribed Metformin and an ACE inhibitor, awaiting discharge.",
-    "target_domain": "clinical"
+FITNESS_COACH_SCENARIO = {
+    "scenario_id": "FIT-BENCH-001",
+    "description": "User wants a comprehensive fitness plan. Interacting with an ecosystem of specialized agents (Fitness, Nutrition, Medical, Recovery, Budget).",
+    "target_domain": "consumer"
 }

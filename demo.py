@@ -15,36 +15,35 @@ from explainer import explain_batch
 from reporter import generate_cli_report, generate_html_report
 from main import execute_coherence_pipeline
 
-# Import our complete reference data structures
-from healthtrack.scenarios import DIABETES_RENAL_SCENARIO
-from healthtrack.knowledge_bases import INTAKE_KB, GUIDELINES_KB, MEDICATION_KB, INSURANCE_KB, DISCHARGE_KB
+# Import our new Consumer Fitness Reference data structures
+from healthtrack.scenarios import FITNESS_COACH_SCENARIO
+from healthtrack.knowledge_bases import FITNESS_KB, NUTRITION_KB, MEDICAL_KB, RECOVERY_KB, BUDGET_KB
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
 
 console = Console()
 
-def run_healthtrack_benchmark(api_key: str, output_html: str, sim_threshold: float) -> int:
+def run_healthcoach_benchmark(api_key: str, output_html: str, sim_threshold: float) -> int:
     """
-    Executes the internal benchmark suite (F8.1 and Gate Condition).
-    Maps historical agent contexts, logs pipeline execution metrics, and verifies 6/6 collisions.
+    Executes the internal benchmark suite for the Personal Health Coach scenario.
+    Maps agent contexts, logs pipeline execution metrics, and verifies 3/3 collisions.
     """
-    # Fix: Replaced deprecated utcnow() with timezone-aware UTC
     benchmark_start = datetime.now(timezone.utc)
-    console.print("\n[bold purple]🏁 Booting HealthTrack Internal Verification Benchmark Suite[/bold purple]")
+    console.print("\n[bold purple]🏁 Booting Personal Health Coach Ecosystem Verification Suite[/bold purple]")
     console.print("-----------------------------------------------------------------")
     
     # Emulate the 5 system environments using our verified knowledge base variables
     agents_kb = {
-        "IntakeAgent": INTAKE_KB,
-        "ClinicalGuidelinesAgent": GUIDELINES_KB,
-        "MedicationReviewAgent": MEDICATION_KB,
-        "InsuranceCoverageAgent": INSURANCE_KB,
-        "DischargeAgent": DISCHARGE_KB
+        "FitnessAgent": FITNESS_KB,
+        "NutritionAgent": NUTRITION_KB,
+        "MedicalAgent": MEDICAL_KB,
+        "RecoveryAgent": RECOVERY_KB,
+        "BudgetAgent": BUDGET_KB
     }
 
     # Configuration footprints for operational tasks
-    base_config = SystemConfig(name="BenchmarkRunner", provider="openai", api_key=api_key, model="gpt-4o-mini")
+    base_config = SystemConfig(name="BenchmarkRunner", provider="openai", api_key=api_key, model="gpt-5.4-mini")
 
     all_extracted_claims = {}
     
@@ -68,12 +67,9 @@ def run_healthtrack_benchmark(api_key: str, output_html: str, sim_threshold: flo
 
     # Cross-reference pairs specified by the multi-agent system layout
     targeted_cross_checks = [
-        ("ClinicalGuidelinesAgent", "MedicationReviewAgent", "HC-001"),
-        ("ClinicalGuidelinesAgent", "DischargeAgent", "HC-002"),
-        ("InsuranceCoverageAgent", "ClinicalGuidelinesAgent", "HC-003"),
-        ("MedicationReviewAgent", "DischargeAgent", "HC-004"),
-        ("IntakeAgent", "ClinicalGuidelinesAgent", "HC-005"),
-        ("InsuranceCoverageAgent", "MedicationReviewAgent", "HC-006"),
+        ("FitnessAgent", "RecoveryAgent", "FIT-001"), # 6 days vs 2 rest days
+        ("FitnessAgent", "MedicalAgent", "FIT-002"),  # Squats vs No knee exercises
+        ("NutritionAgent", "BudgetAgent", "FIT-003"), # Premium organic vs Reduce food expenses
     ]
 
     detected_contradiction_ids = set()
@@ -102,14 +98,14 @@ def run_healthtrack_benchmark(api_key: str, output_html: str, sim_threshold: flo
     generate_cli_report(global_contradictions, explanations, "AgentGroupA", "AgentGroupB")
     generate_html_report(global_contradictions, explanations, "AgentGroupA", "AgentGroupB", output_html)
 
-    # 4. Verification Check: Confirm gate criteria satisfaction
+    # 4. Verification Check: Confirm gate criteria satisfaction (Changed from 6 to 3)
     total_detected = len(detected_contradiction_ids)
     console.print("\n" + "="*65)
-    if total_detected == 6:
-        console.print("[bold white on green]  Gate: PASS — all 6/6 contradictions detected seamlessly  [/bold white on green]")
+    if total_detected == 3:
+        console.print("[bold white on green]  Gate: PASS — all 3/3 contradictions detected seamlessly  [/bold white on green]")
         status_code = 0
     else:
-        console.print(f"[bold white on red]  Gate: FAIL — captured only {total_detected}/6 targets  [/bold white on red]")
+        console.print(f"[bold white on red]  Gate: FAIL — captured only {total_detected}/3 targets  [/bold white on red]")
         status_code = 1
     console.print("="*65 + "\n")
     
@@ -130,10 +126,10 @@ def sanitize_api_key(raw_key: str) -> str:
 @click.option("--probe-domain", default="healthcare", help="Target domain file from probes folder.")
 @click.option("--system-a-name", default="SystemA")
 @click.option("--system-a-key", envvar="OPENAI_API_KEY", help="API credentials string. Defaults to environment variable.")
-@click.option("--system-a-model", default="gpt-4o-mini")
+@click.option("--system-a-model", default="gpt-5.4-mini")
 @click.option("--system-b-name", default="SystemB")
 @click.option("--system-b-key", envvar="OPENAI_API_KEY")
-@click.option("--system-b-model", default="gpt-4o-mini")
+@click.option("--system-b-model", default="gpt-5.4-mini")
 @click.option("--output-html", default="report.html", help="Path to write the standalone HTML output.")
 @click.option("--similarity-threshold", default=0.60, help="Lower-bound similarity pre-filter parameter.")
 def run_cli(mode, probe_domain, system_a_name, system_a_key, system_a_model, system_b_name, system_b_key, system_b_model, output_html, similarity_threshold):
@@ -148,7 +144,7 @@ def run_cli(mode, probe_domain, system_a_name, system_a_key, system_a_model, sys
         sys.exit(1)
 
     if mode == "benchmark":
-        exit_code = run_healthtrack_benchmark(system_a_key, output_html, similarity_threshold)
+        exit_code = run_healthcoach_benchmark(system_a_key, output_html, similarity_threshold)
         sys.exit(exit_code)
         
     elif mode == "orqestra":

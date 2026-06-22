@@ -48,7 +48,7 @@ def execute_coherence_pipeline(
         task_extract = progress.add_task("[cyan]Step 3: Decomposing Factual Claims (SPO)...", total=2)
         task_embed = progress.add_task("[cyan]Step 4: Compiling Vector Embeddings...", total=2)
         task_detect = progress.add_task("[cyan]Step 5: Executing Coherence Funnel...", total=1)
-        task_explain = progress.add_task("[cyan]Step 6: Running Resolution Agent (GPT-4o)...", total=1)
+        task_explain = progress.add_task("[cyan]Step 6: Running Resolution Agent (GPT-5.4-mini)...", total=1)
         task_report = progress.add_task("[cyan]Step 7: Rendering Comprehensive Reports...", total=1)
 
         # ─── STEP 1: LOAD PROBES ───
@@ -111,7 +111,7 @@ def execute_coherence_pipeline(
 
         # ─── STEP 6: RESOLUTION EXPLANATIONS ───
         start = time.perf_counter()
-        progress.update(task_explain, description=f"[cyan]Step 6: Explaining {len(contradictions)} Identified Clashes (GPT-4o)...")
+        progress.update(task_explain, description=f"[cyan]Step 6: Explaining {len(contradictions)} Identified Clashes (GPT-5.4-mini)...")
         explanations = explain_batch(contradictions, sys_a_config)
         progress.advance(task_explain)
         telemetry["step6_resolution_explanations"] = (time.perf_counter() - start) * 1000

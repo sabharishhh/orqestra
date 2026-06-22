@@ -40,6 +40,8 @@ class Explanation:
 # ==========================================
 
 COST_RANGES: Dict[tuple, str] = {
+    ("high",     "consumer"):    "$1,200 (Subscription Cancellation + LTV Loss)",
+    ("medium",   "consumer"):    "$150 (Customer Support Escalation Ticket)",
     ("critical", "clinical"):    "$300,000–$500,000 (malpractice exposure)",
     ("critical", "compliance"):  "$50,000–$250,000 (regulatory fine)",
     ("critical", "pricing"):     "$5,000–$50,000 (contract/billing dispute)",

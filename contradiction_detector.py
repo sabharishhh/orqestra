@@ -76,7 +76,7 @@ def classify_severity(entity_hint: str, score: float) -> str:
     Determines severity using the exact rule matrix mapped to corporate risk profile.
     """
     critical_domains = ["compliance", "legal", "pricing", "clinical"]
-    high_domains = ["policy", "product"]
+    high_domains = ["policy", "product", "consumer"]
     
     normalized_hint = entity_hint.lower().strip()
 
@@ -108,7 +108,7 @@ def classify_pair(
 ) -> Optional[Contradiction]:
     """
     Step 2 & 3: Deep NLI Evaluation
-    Queries gpt-4o-mini to inspect logical overlap and structural conflict.
+    Queries gpt-5.4-mini to inspect logical overlap and structural conflict.
     """
     client_kwargs = {"api_key": config.api_key}
     if config.base_url:
@@ -119,7 +119,9 @@ def classify_pair(
     # FIX: Dynamically map the Context/Domain Hint using the participating System Names.
     # This prevents the AttributeError and ensures the risk-matrix assigns financial metrics properly.
     sys_context = f"{system_a_name} {system_b_name}".lower()
-    if "clinical" in sys_context or "medication" in sys_context or "discharge" in sys_context or "intake" in sys_context:
+    if "fitness" in sys_context or "nutrition" in sys_context or "recovery" in sys_context or "budget" in sys_context:
+        entity_hint = "consumer"
+    elif "clinical" in sys_context or "medication" in sys_context or "discharge" in sys_context or "intake" in sys_context:
         entity_hint = "clinical"
     elif "insurance" in sys_context:
         entity_hint = "policy"
@@ -145,7 +147,7 @@ Return ONLY JSON:
 
     try:
         response = client.chat.completions.create(
-            model=config.model if config.model else "gpt-4o-mini",
+            model=config.model if config.model else "gpt-5.4-mini",
             messages=[
                 {"role": "system", "content": NLI_SYSTEM_PROMPT},
                 {"role": "user", "content": nli_user_prompt}
