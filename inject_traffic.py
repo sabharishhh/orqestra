@@ -41,8 +41,14 @@ for name, text in agents.items():
     # Initialize the Orqestra SDK for this specific agent
     orqestra.init(system_id=sys_id, orqestra_api_key="dev-test-key", orqestra_url=API_URL)
     
-    # Simulate the agent outputting text (Non-blocking SDK hook)
-    orqestra.on_write(text=text, metadata={"agent_name": name})
+    # --- THE CLEAN SDK IMPLEMENTATION ---
+    # vector_clock is now passed explicitly as a top-level parameter,
+    # proving to Level 1 that these are independent, concurrent timelines!
+    orqestra.on_write(
+        text=text, 
+        metadata={"agent_name": name},
+        vector_clock={sys_id: 1}  
+    )
     
     # Small stagger to simulate real-world asynchronous traffic
     time.sleep(0.5) 

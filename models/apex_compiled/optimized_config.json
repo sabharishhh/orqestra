@@ -1,0 +1,141 @@
+{
+  "judge.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "claim_a": "Metformin is contraindicated when eGFR falls below 45 mL/min/1.73m².",
+        "claim_b": "Metformin may be continued at a reduced dose until eGFR drops below 30 mL/min/1.73m².",
+        "topic": "medication guidelines",
+        "reasoning": "The claims conflict on the eGFR threshold for metformin use. Claim A says metformin is contraindicated once eGFR is below 45 mL/min/1.73m², while Claim B says it can be continued at a reduced dose until eGFR is below 30 mL/min/1.73m². These cannot both be true as a general rule because they prescribe different stopping points for the same medication under the same condition.",
+        "extracted_entities": "Metformin; eGFR; kidney function threshold; reduced dose",
+        "extracted_conditions": "Claim A: when eGFR falls below 45 mL/min/1.73m².\nClaim B: until eGFR drops below 30 mL/min/1.73m²; continued at reduced dose.",
+        "extracted_actions": "Claim A: contraindicate metformin.\nClaim B: continue metformin at a reduced dose.",
+        "is_contradiction": "True"
+      },
+      {
+        "augmented": true,
+        "claim_a": "Patients on basal insulin with HbA1c above 9.0% must be referred to endocrinology within 30 days.",
+        "claim_b": "Endocrinology referral for insulin-managed patients is indicated only when HbA1c exceeds 10.0% on two consecutive measurements.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims set different referral thresholds for overlapping patients on insulin. Claim A requires referral within 30 days when HbA1c is above 9.0%. Claim B says referral is indicated only when HbA1c exceeds 10.0% on two consecutive measurements. For patients with HbA1c between 9.0% and 10.0%, Claim A requires referral but Claim B does not. Because they impose incompatible conditions for when referral is required, they contradict each other on the same topic.",
+        "extracted_entities": "Patients on basal insulin; endocrinology; insulin-managed patients; HbA1c; referral timing (within 30 days); consecutive measurements",
+        "extracted_conditions": "Claim A: applies to patients on basal insulin with HbA1c above 9.0%.\nClaim B: applies only when HbA1c exceeds 10.0% on two consecutive measurements.\nOverlapping scope: insulin-treated / insulin-managed patients.\nTemporal condition in A: referral within 30 days.",
+        "extracted_actions": "Claim A: must be referred to endocrinology within 30 days.\nClaim B: endocrinology referral is indicated.",
+        "is_contradiction": "True"
+      },
+      {
+        "augmented": true,
+        "claim_a": "Uncomplicated urinary tract infections in non-pregnant adults are treated with a 3-day course of trimethoprim-sulfamethoxazole.",
+        "claim_b": "Standard antibiotic therapy for uncomplicated UTI requires a minimum 7-day treatment course.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims conflict on the required antibiotic treatment duration for uncomplicated UTI in non-pregnant adults. Claim A says a 3-day course is used, while Claim B says standard therapy requires at least 7 days. For the same condition, these durations cannot both be the general requirement.",
+        "extracted_entities": "uncomplicated urinary tract infections, non-pregnant adults, trimethoprim-sulfamethoxazole, standard antibiotic therapy",
+        "extracted_conditions": "Claim A: applies to uncomplicated UTIs in non-pregnant adults. Claim B: applies to uncomplicated UTI under standard antibiotic therapy. Both concern the same general condition, with no qualifying exception that reconciles 3 days vs minimum 7 days.",
+        "extracted_actions": "Treat with a 3-day course of trimethoprim-sulfamethoxazole; require a minimum 7-day antibiotic treatment course.",
+        "is_contradiction": "True"
+      },
+      {
+        "augmented": true,
+        "claim_a": "Post-surgical patients must complete a minimum 24-hour in-hospital observation period before discharge.",
+        "claim_b": "Patients undergoing same-day ambulatory procedures classified as ASA Class I or II may be discharged within 6 hours of procedure completion if all vital sign criteria are met.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims are conditionally compatible. Claim A sets a general rule for post-surgical patients: a minimum 24-hour in-hospital observation before discharge. Claim B carves out a narrower subset—same-day ambulatory procedures for ASA Class I or II patients—who may be discharged within 6 hours if vital sign criteria are met. Since B applies only to a specific subgroup and includes extra conditions, it does not inherently contradict the broader rule unless A explicitly forbids exceptions.",
+        "extracted_entities": "Post-surgical patients; same-day ambulatory procedures; ASA Class I or II patients; in-hospital observation period; discharge; vital sign criteria",
+        "extracted_conditions": "- Claim A: Applies to post-surgical patients generally.\n- Claim B: Applies only to patients undergoing same-day ambulatory procedures classified as ASA Class I or II.\n- Claim B: Discharge within 6 hours is allowed only if all vital sign criteria are met.\n- Claim B: Exception is limited to the described subset.",
+        "extracted_actions": "- Claim A: Must complete a minimum 24-hour in-hospital observation period before discharge.\n- Claim B: May be discharged within 6 hours of procedure completion if conditions are satisfied.",
+        "is_contradiction": "False"
+      },
+      {
+        "augmented": true,
+        "claim_a": "Antibiotic prophylaxis with cefazolin 2g IV is mandatory for all patients undergoing cardiac valve replacement surgery.",
+        "claim_b": "Patients with a documented penicillin or cephalosporin allergy presenting for cardiac valve surgery must receive clindamycin 600 mg IV as the prophylactic antibiotic substitution.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims are conditionally compatible rather than contradictory. Claim A sets a general rule that cefazolin 2g IV is mandatory for all patients undergoing cardiac valve replacement surgery. Claim B specifies an exception/substitution for patients with documented penicillin or cephalosporin allergy, requiring clindamycin 600 mg IV instead. Since B applies only to a subset of patients for whom cefazolin may not be appropriate, the two claims can coexist.",
+        "extracted_entities": "cardiac valve replacement surgery; patients; cefazolin 2g IV; documented penicillin allergy; documented cephalosporin allergy; clindamycin 600 mg IV",
+        "extracted_conditions": "Claim A: applies to all patients undergoing cardiac valve replacement surgery.\nClaim B: applies only to patients with a documented penicillin or cephalosporin allergy presenting for cardiac valve surgery.",
+        "extracted_actions": "Claim A: administer mandatory cefazolin 2g IV prophylaxis.\nClaim B: administer clindamycin 600 mg IV as the prophylactic antibiotic substitution.",
+        "is_contradiction": "False"
+      },
+      {
+        "augmented": true,
+        "claim_a": "All Type 2 diabetic patients must have HbA1c measured every 90 days.",
+        "claim_b": "Patients with well-controlled Type 2 diabetes, defined as two consecutive HbA1c readings below 7.0%, require HbA1c measurement every 180 days.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims specify different HbA1c testing intervals for overlapping Type 2 diabetic patients. Claim A states a universal requirement of every 90 days for all Type 2 diabetic patients. Claim B gives a more specific rule for well-controlled Type 2 diabetes, requiring testing every 180 days. Since a patient can satisfy the condition in claim B and still be within the class covered by claim A, the two claims prescribe different schedules for the same subgroup. However, because one could interpret claim B as a conditional exception to the general rule, they are not inherently contradictory in all scenarios unless exclusivity is assumed.",
+        "extracted_entities": "Type 2 diabetic patients; well-controlled Type 2 diabetes patients; HbA1c testing/measurement; consecutive HbA1c readings below 7.0%; 90-day interval; 180-day interval",
+        "extracted_conditions": "Claim A: applies to all Type 2 diabetic patients, no stated exceptions.\nClaim B: applies only to patients with well-controlled Type 2 diabetes, defined as two consecutive HbA1c readings below 7.0%.\nClaim B also overrides the base schedule for that subgroup by specifying a 180-day interval.",
+        "extracted_actions": "Claim A: measure HbA1c every 90 days.\nClaim B: measure HbA1c every 180 days for well-controlled Type 2 diabetic patients.",
+        "is_contradiction": "False"
+      },
+      {
+        "augmented": true,
+        "claim_a": "Prior authorization is required before ordering an MRI for musculoskeletal complaints.",
+        "claim_b": "MRI orders for suspected acute spinal cord compression must be placed immediately without prior authorization and completed within 2 hours of the clinical decision.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims overlap on MRI ordering policy but apply under different conditions. Claim A states a general rule: prior authorization is required before ordering an MRI for musculoskeletal complaints. Claim B gives a specific exception for suspected acute spinal cord compression: MRI must be ordered immediately without prior authorization and completed within 2 hours. Since a specific emergency exception can coexist with a general prior-authorization rule, they are conditionally compatible, not inherently contradictory.",
+        "extracted_entities": "MRI orders, prior authorization, musculoskeletal complaints, suspected acute spinal cord compression, clinical decision",
+        "extracted_conditions": "Claim A: applies to MRI orders for musculoskeletal complaints; prior authorization required before ordering.\nClaim B: applies to suspected acute spinal cord compression; MRI must be ordered immediately, no prior authorization, and completed within 2 hours of the clinical decision.",
+        "extracted_actions": "Claim A: obtain prior authorization before ordering an MRI.\nClaim B: place the MRI order immediately without prior authorization; complete the MRI within 2 hours.",
+        "is_contradiction": "False"
+      },
+      {
+        "augmented": true,
+        "claim_a": "The standard post-discharge follow-up window for Type 2 diabetes patients is 4 weeks.",
+        "claim_b": "Patients discharged following a hypoglycemic episode that required IV dextrose administration must schedule follow-up within 72 hours of discharge.",
+        "topic": "enterprise policy",
+        "reasoning": "The claims are compatible because claim_a states a standard follow-up window for Type 2 diabetes patients, while claim_b gives a more specific and stricter follow-up requirement for a subset of patients discharged after a hypoglycemic episode requiring IV dextrose. The second claim can be treated as an exception or special-case rule within the broader 4-week standard, so they do not inherently contradict.",
+        "extracted_entities": "Type 2 diabetes patients; post-discharge follow-up window; hypoglycemic episode; IV dextrose administration; discharge; follow-up scheduling",
+        "extracted_conditions": "Claim_a applies to standard post-discharge follow-up for Type 2 diabetes patients. Claim_b applies specifically to patients discharged after a hypoglycemic episode that required IV dextrose administration. Claim_b requires follow-up within 72 hours of discharge, regardless of the general standard window.",
+        "extracted_actions": "Set standard post-discharge follow-up window to 4 weeks for Type 2 diabetes patients. Schedule follow-up within 72 hours for patients discharged after hypoglycemic episodes requiring IV dextrose.",
+        "is_contradiction": "False"
+      }
+    ],
+    "signature": {
+      "instructions": "Evaluate if two claims logically contradict each other. Pay strict attention to conditional constraints (e.g., 'only if', 'unless', 'strictly avoid'). If one statement is conditional and the other is a general rule, they might NOT contradict.",
+      "fields": [
+        {
+          "prefix": "Claim A:",
+          "description": "First claim from System A"
+        },
+        {
+          "prefix": "Claim B:",
+          "description": "Second claim from System B"
+        },
+        {
+          "prefix": "Topic:",
+          "description": "The core entity or topic being discussed"
+        },
+        {
+          "prefix": "Reasoning:",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Extracted Entities:",
+          "description": "Extract entities involved"
+        },
+        {
+          "prefix": "Extracted Conditions:",
+          "description": "Extract conditional constraints from both claims"
+        },
+        {
+          "prefix": "Extracted Actions:",
+          "description": "Extract prescribed actions from both claims"
+        },
+        {
+          "prefix": "Is Contradiction:",
+          "description": "Return strictly 'True' if they inherently contradict in all scenarios, or 'False' if they are conditionally compatible."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.13",
+      "dspy": "3.2.1",
+      "cloudpickle": "3.1"
+    }
+  }
+}

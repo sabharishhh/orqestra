@@ -1,0 +1,52 @@
+{
+  "hash": "7042136e",
+  "configHash": "d274b68a",
+  "lockfileHash": "127e33c2",
+  "browserHash": "e83c9c15",
+  "optimized": {
+    "d3-force": {
+      "src": "../../node_modules/d3-force/src/index.js",
+      "file": "d3-force.js",
+      "fileHash": "b42e4681",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "b7128423",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "9f2e1e94",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "e93efca0",
+      "needsInterop": true
+    },
+    "reactflow": {
+      "src": "../../node_modules/reactflow/dist/esm/index.mjs",
+      "file": "reactflow.js",
+      "fileHash": "047d3886",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "react-Ea1HnpA1": {
+      "file": "react-Ea1HnpA1.js",
+      "isDynamicEntry": false
+    },
+    "react-dom-BiNnG8uc": {
+      "file": "react-dom-BiNnG8uc.js",
+      "isDynamicEntry": false
+    },
+    "timer-DeiWb7hw": {
+      "file": "timer-DeiWb7hw.js",
+      "isDynamicEntry": false
+    }
+  }
+}

@@ -57,8 +57,6 @@ class BackgroundTelemetryLogger:
         """Sends the payload array to the FastAPI ingestion endpoint."""
         try:
             # We assume batch mode endpoint is available: POST /systems/{id}/samples/batch
-            # The SDK wrapper expects the user to pass a single System ID. 
-            # In a real SDK, the system_id would be part of the endpoint URL.
             payload = {"samples": batch}
             response = client.post(self.endpoint_url, json=payload)
             response.raise_for_status()

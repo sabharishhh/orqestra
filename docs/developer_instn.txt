@@ -15,7 +15,13 @@ response = client.chat.completions.create(...)
 
 
 docker compose up
+
+cd frontend/
+npm install
 npm run dev
-celery -A core.celery_app worker --loglevel=info
+
+celery -A core.celery_app worker --pool=solo --loglevel=info
+
 uvicorn api.main:app --reload
+
 python inject_traffic.py

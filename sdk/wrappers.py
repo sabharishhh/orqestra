@@ -31,7 +31,8 @@ def wrap_openai(client):
                 "metadata": {
                     "model": kwargs.get("model", "unknown"),
                     "sdk_origin": "openai_wrapper"
-                }
+                },
+                "vector_clock": {}  # Empty by default for raw wrapper calls
             })
         except Exception:
             # Fail silently so we never break the host application
@@ -44,16 +45,23 @@ def wrap_openai(client):
     return client
 
 
-def on_write(text: str, metadata: dict = None):
+def on_write(text: str, metadata: dict = None, vector_clock: dict = None):
     """
     Direct Write-Hook.
     Used by arbitrary architectures (LangChain, CrewAI, Autogen) to push state directly.
+    
+    Args:
+        text: The raw output or state from the agent.
+        metadata: Optional dictionary of context (e.g., agent_name, session_id).
+        vector_clock: Dictionary mapping agent IDs to logical timestamps. 
+                      Crucial for Level 1 Orqestra Causal Override detection.
     """
     try:
         logger = get_logger()
         logger.log({
             "text": text,
-            "metadata": metadata or {"sdk_origin": "direct_write_hook"}
+            "metadata": metadata or {"sdk_origin": "direct_write_hook"},
+            "vector_clock": vector_clock or {}
         })
     except Exception:
         pass
