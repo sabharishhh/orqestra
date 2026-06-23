@@ -6,10 +6,12 @@ from core.database import SessionLocal
 from models.database import Contradiction, Claim, Resolution, System
 from openai import OpenAI
 
+# Removed the top-level import of workers.tasks to prevent circular dependency
+
 logger = logging.getLogger(__name__)
 
 def generate_resolution(contradiction_id: str):
-    """Worker 5 Phase: The premium GPT-4o explainer agent."""
+    """Worker 5 Phase: The premium GPT-5.4 explainer agent."""
     db: Session = SessionLocal()
     
     try:
@@ -45,7 +47,7 @@ Return ONLY JSON matching:
 
         client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         response = client.chat.completions.create(
-            model="gpt-4o", 
+            model="gpt-5.4-mini", 
             messages=[
                 {"role": "system", "content": "You resolve AI contradictions."},
                 {"role": "user", "content": prompt}
@@ -83,6 +85,11 @@ Return ONLY JSON matching:
         db.add(resolution)
         db.commit()
         logger.info(f"Resolution Agent successfully compiled fix for Contradiction [{contradiction_id}]")
+
+        if is_high_risk:
+            logger.info("High risk detected. Triggering Slack Webhook Dispatcher...")
+            from workers.tasks import dispatch_alert_task
+            dispatch_alert_task.delay(str(resolution.id))
         
     except Exception as e:
         db.rollback()

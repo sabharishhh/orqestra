@@ -32,7 +32,7 @@ def run_extraction(text: str) -> List[Dict[str, Any]]:
     
     # --- PHASE 1: SPO Extraction ---
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5.4-mini",
         messages=[
             {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
             {"role": "user", "content": f"Extract facts from this text:\n\n{text}"}

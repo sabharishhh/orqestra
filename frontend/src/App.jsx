@@ -4,9 +4,10 @@ import KnowledgeGraph from './components/KnowledgeGraph';
 
 function App() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-blue-500/30 pb-20">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-blue-500/30 pb-12">
+      {/* Expanded to max-w-[95rem] for an ultra-wide Command Center feel */}
+      <div className="max-w-[95rem] mx-auto px-6 py-8">
+        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800/80 pb-6">
           <div>
             <h1 className="text-4xl font-extrabold text-white tracking-tight">
               Orqestra <span className="text-blue-500">Estate Control</span>
@@ -20,12 +21,19 @@ function App() {
         
         <EstateScoreHeader />
         
-        {/* The New 3D Visualizer */}
-        <KnowledgeGraph />
-        
-        <main>
-          <ContradictionFeed />
-        </main>
+        {/* The Split-Pane Layout */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* SIDEBAR: The Live Feed (1/3 width) */}
+          <div className="xl:col-span-4 flex flex-col">
+            <ContradictionFeed />
+          </div>
+          
+          {/* MAIN PANE: The Graph (2/3 width) */}
+          <div className="xl:col-span-8 flex flex-col">
+            <KnowledgeGraph />
+          </div>
+        </div>
+
       </div>
     </div>
   );

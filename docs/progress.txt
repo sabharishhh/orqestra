@@ -6,4 +6,4 @@ v1.0.2
 
 phase 1 monitoring service:
 
-v.2.0.1 - 
+v.2.0.1 - contradiction detection using gpt-5.4-mini | graph visualization

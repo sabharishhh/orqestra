@@ -12,3 +12,10 @@ client = orqestra.wrap_openai(client)
 
 # Everything else runs exactly as normal.
 response = client.chat.completions.create(...)
+
+
+docker compose up
+npm run dev
+celery -A core.celery_app worker --loglevel=info
+uvicorn api.main:app --reload
+python inject_traffic.py

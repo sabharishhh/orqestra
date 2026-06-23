@@ -8,6 +8,7 @@ from workers.sccg_writer import write_claims_to_sccg
 from workers.obg_updater import update_entity_centroids
 from workers.contradiction_detector import run_5_level_funnel
 from workers.resolution_agent import generate_resolution
+from workers.alert_dispatcher import send_slack_alert
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ def process_sample_task(self, system_id: str, text: str, metadata: dict):
 
 @celery_app.task(bind=True)
 def extract_and_embed_task(self, system_id: str, text: str, metadata: dict):
-    """Worker 1: Extracts SPO triples via gpt-4o-mini and embeds them."""
+    """Worker 1: Extracts SPO triples via gpt-5.4-mini and embeds them."""
     # Ported from Phase 0 Module 2 & 3
     embedded_claims = run_extraction(text)
     return embedded_claims # Passed to write_sccg_task
@@ -69,6 +70,12 @@ def detect_contradictions_task(self, updated_entities: list, system_id: str):
 
 @celery_app.task(bind=True)
 def resolve_contradiction_task(self, contradiction_id: str):
-    """Worker 5: The gpt-4o explainer agent."""
+    """Worker 5: The gpt-5.4-mini explainer agent."""
     generate_resolution(contradiction_id)
     return {"status": "resolved", "id": contradiction_id}
+
+@celery_app.task(bind=True, max_retries=3)
+def dispatch_alert_task(self, resolution_id: str):
+    """Celery wrapper for the Alert Dispatcher."""
+    send_slack_alert(resolution_id)
+    return {"status": "alert_dispatched", "resolution_id": resolution_id}

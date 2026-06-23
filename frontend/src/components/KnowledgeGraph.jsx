@@ -133,8 +133,7 @@ export default function KnowledgeGraph() {
     if (nodes.length === 0) return null;
 
     return (
-        <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden h-[600px] relative w-full mb-8 shadow-2xl">
-            <ReactFlow
+<div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden h-[600px] relative w-full shadow-2xl">            <ReactFlow
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
