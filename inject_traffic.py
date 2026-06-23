@@ -1,10 +1,13 @@
 import time
-import httpx
+import secrets
+import hashlib
 import sdk as orqestra
+from sqlalchemy.orm import Session
+from core.database import SessionLocal
+from models.database import System
 from healthtrack.knowledge_bases import FITNESS_KB, NUTRITION_KB, MEDICAL_KB, RECOVERY_KB, BUDGET_KB
 
 API_URL = "http://localhost:8000"
-HEADERS = {"X-Orqestra-Key": "dev-test-key"}
 
 agents = {
     "FitnessAgent": FITNESS_KB,
@@ -14,44 +17,54 @@ agents = {
     "BudgetAgent": BUDGET_KB
 }
 
-print("🚀 Booting Live Traffic Simulator...")
+print("🚀 Booting Live Traffic Simulator & Cryptographic Seeder...")
 
-# Fetch existing systems to prevent 'already registered' errors
-try:
-    existing_resp = httpx.get(f"{API_URL}/systems/")
-    existing_systems = {s["name"]: s["id"] for s in existing_resp.json()}
-except Exception as e:
-    print(f"Failed to connect to FastAPI: {e}")
-    exit(1)
+db: Session = SessionLocal()
+agent_credentials = {}
 
 for name, text in agents.items():
-    sys_id = existing_systems.get(name)
+    # 1. Generate F7.3 Compliant Key (oq- + 64 hex chars)
+    raw_key = f"oq-{secrets.token_hex(32)}"
+    key_hash = hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
     
-    if not sys_id:
-        resp = httpx.post(f"{API_URL}/systems/", json={"name": name, "provider": "openai"}, headers=HEADERS)
-        if resp.status_code == 200:
-            sys_id = resp.json()["id"]
-            print(f"✅ Registered New Agent: {name} -> {sys_id}")
-        else:
-            print(f"⚠️ Failed to register {name}: {resp.text}")
-            continue
+    system = db.query(System).filter_by(name=name).first()
+    
+    if not system:
+        # 2. Securely provision the agent directly in the DB
+        system = System(
+            name=name,
+            provider="openai",
+            api_key_hash=key_hash
+        )
+        db.add(system)
+        db.commit()
+        db.refresh(system)
+        print(f"✅ Provisioned New Agent: {name} -> {system.id}")
     else:
-        print(f"🔄 Reconnected Existing Agent: {name} -> {sys_id}")
+        # 3. Rotate key for existing system so the simulator always works
+        system.api_key_hash = key_hash
+        db.commit()
+        print(f"🔄 Reconnected & Rotated Key for: {name} -> {system.id}")
+        
+    agent_credentials[name] = {
+        "id": str(system.id),
+        "key": raw_key,
+        "text": text
+    }
 
-    # Initialize the Orqestra SDK for this specific agent
-    orqestra.init(system_id=sys_id, orqestra_api_key="dev-test-key", orqestra_url=API_URL)
+db.close()
+
+for name, data in agent_credentials.items():
+    # Initialize the Orqestra SDK using the newly minted, compliant API key
+    orqestra.init(system_id=data["id"], orqestra_api_key=data["key"], orqestra_url=API_URL)
     
-    # --- THE CLEAN SDK IMPLEMENTATION ---
-    # vector_clock is now passed explicitly as a top-level parameter,
-    # proving to Level 1 that these are independent, concurrent timelines!
+    # Vector clock dynamically tracks the agent's exact UUID
     orqestra.on_write(
-        text=text, 
+        text=data["text"], 
         metadata={"agent_name": name},
-        vector_clock={sys_id: 1}  
+        vector_clock={data["id"]: 1}  
     )
-    
-    # Small stagger to simulate real-world asynchronous traffic
     time.sleep(0.5) 
 
-print("📡 Telemetry dispatched to background queues! Waiting for Celery to process...")
-time.sleep(2) # Give the background thread time to flush
+print("📡 Secure Telemetry dispatched! Waiting for Celery to process...")
+time.sleep(2)

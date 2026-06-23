@@ -1,30 +1,35 @@
 import functools
+import warnings
 from .client import get_logger
 
+# F4.2 Compliance: Guard against upstream API structure changes
+try:
+    import openai
+    if not openai.__version__.startswith("1."):
+        warnings.warn(
+            f"\n[ORQESTRA SDK] WARNING: Untested OpenAI version detected (v{openai.__version__}). "
+            "Orqestra telemetry monkey-patching is only certified for v1.x.x. "
+            "Telemetry may silently fail.\n", 
+            UserWarning
+        )
+except ImportError:
+    pass
+
 def wrap_openai(client):
-    """
-    Wraps an official OpenAI Python Client.
-    Intercepts chat.completions.create to extract context for Orqestra.
-    """
+    """Wraps an official OpenAI Python Client."""
     original_create = client.chat.completions.create
 
     @functools.wraps(original_create)
     def wrapped_create(*args, **kwargs):
-        # 1. Execute the actual LLM call
         response = original_create(*args, **kwargs)
         
-        # 2. Extract Context (System prompt + Assistant Output)
         try:
-            # We want to capture what the agent knows (system prompt) 
-            # and what it concluded (assistant text)
             messages = kwargs.get("messages", [])
             system_prompts = [m["content"] for m in messages if m.get("role") == "system"]
             assistant_output = response.choices[0].message.content
             
-            # Combine them into the raw text block that our Extractor will parse
             full_context = "\n".join(system_prompts) + "\n\n" + assistant_output
             
-            # 3. Fire to background queue silently
             logger = get_logger()
             logger.log({
                 "text": full_context,
@@ -32,30 +37,18 @@ def wrap_openai(client):
                     "model": kwargs.get("model", "unknown"),
                     "sdk_origin": "openai_wrapper"
                 },
-                "vector_clock": {}  # Empty by default for raw wrapper calls
+                "vector_clock": {}
             })
         except Exception:
-            # Fail silently so we never break the host application
             pass
             
         return response
 
-    # Monkey patch the client
     client.chat.completions.create = wrapped_create
     return client
 
-
 def on_write(text: str, metadata: dict = None, vector_clock: dict = None):
-    """
-    Direct Write-Hook.
-    Used by arbitrary architectures (LangChain, CrewAI, Autogen) to push state directly.
-    
-    Args:
-        text: The raw output or state from the agent.
-        metadata: Optional dictionary of context (e.g., agent_name, session_id).
-        vector_clock: Dictionary mapping agent IDs to logical timestamps. 
-                      Crucial for Level 1 Orqestra Causal Override detection.
-    """
+    """Direct Write-Hook for arbitrary architectures."""
     try:
         logger = get_logger()
         logger.log({

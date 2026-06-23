@@ -14,6 +14,31 @@ class System(Base):
     name = Column(String(255), unique=True, nullable=False)
     provider = Column(String(50), default="openai")
     description = Column(Text)
+    api_key_hash = Column(String(64), unique=True) # ADD THIS LINE
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class Entity(Base):
+    __tablename__ = 'entities'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    canonical_name = Column(String(255), unique=True, nullable=False)
+    aliases = Column(JSONB, default=list)
+    entity_type = Column(String(50), default="general")
+    importance = Column(Float, default=0.5)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class InductionCandidate(Base):
+    __tablename__ = 'induction_candidates'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    suggested_name = Column(String(255), nullable=False)
+    aliases = Column(JSONB, default=list)
+    suggested_type = Column(String(50), default="general")
+    suggested_importance = Column(Float, default=0.5)
+    variance_score = Column(Float, default=0.0)
+    claim_frequency = Column(Integer, default=0)
+    sample_claims = Column(JSONB, default=dict)
+    status = Column(String(50), default="pending")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class Claim(Base):
@@ -31,6 +56,7 @@ class Claim(Base):
     parent_hashes = Column(JSONB, default=list)
     is_historical = Column(Boolean, default=False) # F4.4 Compliance: Historical Data Flag
     extracted_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
 
 class EntityBeliefState(Base):
     __tablename__ = 'entity_belief_states'
@@ -55,7 +81,7 @@ class Contradiction(Base):
     severity = Column(String(50), nullable=False)
     status = Column(String(50), default='open')
     detected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
+    entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
     __table_args__ = (UniqueConstraint('claim_a_id', 'claim_b_id', name='unique_claim_pair'),)
 
 class Resolution(Base):

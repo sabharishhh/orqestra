@@ -35,7 +35,7 @@ def safe_llm_resolution(prompt: str) -> dict:
     """Executes the LLM call with exponential backoff protection."""
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     response = client.chat.completions.create(
-        model="gpt-4o-mini", 
+        model="gpt-5.4-mini", 
         messages=[
             {"role": "system", "content": "You resolve AI contradictions based strictly on the provided causal history. Do not invent timelines."},
             {"role": "user", "content": prompt}
