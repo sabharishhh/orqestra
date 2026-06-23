@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS resolutions (
     risk_reason TEXT,
     recommended_action TEXT,
     estimated_cost VARCHAR(255),
-    target_uri VARCHAR(512),                
+    target_uri VARCHAR(512),
+    status VARCHAR(50) DEFAULT 'pending',
     generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

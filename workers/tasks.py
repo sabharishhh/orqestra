@@ -98,14 +98,40 @@ def resolve_contradiction_task(self, contradiction_id: str):
         dlq_handler.apply_async(args=[{"contradiction_id": contradiction_id}, str(exc)], queue='dead_letters')
         raise self.retry(exc=exc)
 
+
 @celery_app.task(bind=True, max_retries=3)
 def dispatch_alert_task(self, resolution_id: str):
     """Celery wrapper for the Alert Dispatcher."""
     send_slack_alert(resolution_id)
     return {"status": "alert_dispatched", "resolution_id": resolution_id}
 
+
 @celery_app.task(queue='dead_letters')
 def dlq_handler(failed_payload: dict, error_msg: str):
     """F5.3 Compliance: Dead Letter Queue for persistent failures."""
     logger.critical(f"DLQ CAUGHT: {error_msg} | Payload: {failed_payload}")
     return {"status": "dead_letter_logged"}
+
+
+@celery_app.task
+def trigger_all_coherence_scores():
+    """Wakes up periodically via Celery Beat to calculate estate health metrics."""
+    from core.database import SessionLocal
+    from models.database import System
+    from workers.coherence_scorer import update_coherence_score
+    
+    db = SessionLocal()
+    try:
+        systems = db.query(System).all()
+        for sys in systems:
+            update_coherence_score.delay(str(sys.id))
+    finally:
+        db.close()
+
+
+@celery_app.task
+def trigger_finetune_task(entity_type: str):
+    """Triggered by feedback_collector when human validation thresholds are met."""
+    logger.info(f"🚀 REINFORCEMENT LEARNING KICKOFF: Fine-tuning DeBERTa for domain: {entity_type}")
+    # In a full production build, this invokes an external ML training pipeline
+    return {"status": "finetune_started", "domain": entity_type}

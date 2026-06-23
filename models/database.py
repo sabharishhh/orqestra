@@ -86,7 +86,6 @@ class Contradiction(Base):
 
 class Resolution(Base):
     __tablename__ = 'resolutions'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contradiction_id = Column(UUID(as_uuid=True), ForeignKey('contradictions.id', ondelete='CASCADE'), unique=True)
     why_they_contradict = Column(Text, nullable=False)
@@ -95,4 +94,5 @@ class Resolution(Base):
     recommended_action = Column(Text)
     estimated_cost = Column(String(255))
     target_uri = Column(String(512))
+    status = Column(String(50), default="pending")
     generated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

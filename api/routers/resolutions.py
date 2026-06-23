@@ -5,12 +5,22 @@ from core.database import get_db
 from models.database import Resolution
 from pydantic import BaseModel
 
-# This is the line FastAPI was looking for!
 router = APIRouter()
 
 class FeedbackRequest(BaseModel):
     action: str # "accept" or "reject"
 
+# ==========================================
+# CRITICAL FIX: Static routes MUST come before dynamic /{id} routes!
+# ==========================================
+@router.get("/pending")
+def get_pending_resolutions(db: Session = Depends(get_db)):
+    """Fetch top 5 unresolved resolutions for the React Inbox."""
+    return db.query(Resolution).filter(Resolution.status == "pending").limit(5).all()
+
+# ==========================================
+# DYNAMIC ROUTES
+# ==========================================
 @router.get("/{contradiction_id}")
 def get_resolution_for_contradiction(contradiction_id: UUID, db: Session = Depends(get_db)):
     """Fetches the AI-generated resolution proposal for a specific contradiction."""
@@ -31,20 +41,26 @@ def get_resolution_for_contradiction(contradiction_id: UUID, db: Session = Depen
         "generated_at": resolution.generated_at
     }
 
-@router.get("/pending")
-def get_pending_resolutions(db: Session = Depends(get_db)):
-    # Fetch top 5 unresolved
-    return db.query(Resolution).filter(Resolution.status == "pending").limit(5).all()
-
 @router.post("/{id}/feedback")
 def submit_feedback(id: str, payload: FeedbackRequest, db: Session = Depends(get_db)):
-    # Trigger the Celery Task we built in Sprint 2!
+    """Logs human validation and triggers the RL fine-tuning pipeline."""
+    # 1. Update local status to remove from queue
+    res = db.query(Resolution).filter_by(id=id).first()
+    if not res:
+        raise HTTPException(status_code=404, detail="Resolution not found.")
+        
+    res.status = payload.action
+
+    if payload.action == "accept":
+        from models.database import Contradiction
+        contradiction = db.query(Contradiction).filter_by(id=res.contradiction_id).first()
+        if contradiction:
+            contradiction.status = "resolved"
+
+    db.commit()
+    
+    # 2. Trigger the Reinforcement Learning Celery Task
     from workers.feedback_collector import record_feedback
     record_feedback.delay(id, payload.action)
     
-    # Update local status to remove from queue
-    res = db.query(Resolution).filter_by(id=id).first()
-    if res:
-        res.status = payload.action
-        db.commit()
-    return {"status": "feedback_logged"}
+    return {"status": "feedback_logged", "action": payload.action}

@@ -58,7 +58,7 @@ def get_graph_data(db: Session = Depends(get_db)):
             })
         
     # 4. Render the Contradictions (The red collision lasers)
-    contradictions = db.query(Contradiction).all()
+    contradictions = db.query(Contradiction).filter(Contradiction.status == "open").all()
     for contra in contradictions:
         links.append({
             "source": str(contra.claim_a_id),
