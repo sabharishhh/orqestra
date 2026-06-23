@@ -2,8 +2,9 @@ import os
 import json
 import logging
 from typing import List, Dict, Any
-from openai import OpenAI
-from tenacity import retry, wait_exponential, stop_after_attempt
+import httpx
+from openai import OpenAI, APIConnectionError, RateLimitError, APITimeoutError
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,13 @@ Return ONLY JSON matching:
   ]
 }"""
 
-@retry(wait=wait_exponential(multiplier=2, min=2, max=10), stop=stop_after_attempt(3), reraise=True)
+# F5.1 Compliance: Circuit Breaker on LLM via Tenacity with explicit exception typing
+@retry(
+    wait=wait_exponential(multiplier=2, min=2, max=30), 
+    stop=stop_after_attempt(5), 
+    retry=retry_if_exception_type((APIConnectionError, RateLimitError, APITimeoutError, httpx.HTTPError)),
+    reraise=True
+)
 def run_extraction(text: str) -> List[Dict[str, Any]]:
     """Worker 1 Phase: Extracts structured SPO triples and generates 1536-dim embeddings."""
     if not text.strip():
@@ -32,7 +39,7 @@ def run_extraction(text: str) -> List[Dict[str, Any]]:
     
     # --- PHASE 1: SPO Extraction ---
     response = client.chat.completions.create(
-        model="gpt-5.4-mini",
+        model="gpt-4o-mini", # Standardized model name
         messages=[
             {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
             {"role": "user", "content": f"Extract facts from this text:\n\n{text}"}

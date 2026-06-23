@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Integer, ForeignKey, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, String, Float, Integer, ForeignKey, DateTime, Text, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 from pgvector.sqlalchemy import Vector
@@ -29,6 +29,7 @@ class Claim(Base):
     embedding = Column(Vector(1536))
     vector_clock = Column(JSONB, default=dict)
     parent_hashes = Column(JSONB, default=list)
+    is_historical = Column(Boolean, default=False) # F4.4 Compliance: Historical Data Flag
     extracted_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class EntityBeliefState(Base):

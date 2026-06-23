@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from core.database import get_db
 from models.database import System
@@ -16,7 +16,8 @@ router = APIRouter()
 # --- Pydantic Schemas ---
 class SamplePayload(BaseModel):
     text: str
-    metadata: Dict[str, Any] = {}
+    metadata: Optional[Dict[str, Any]] = None
+    vector_clock: Optional[Dict[str, Any]] = None
 
 class BatchSamplePayload(BaseModel):
     samples: List[SamplePayload]

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS claims (
     embedding vector(1536),                 -- OpenAI text-embedding-3-small dimension
     vector_clock JSONB DEFAULT '{}'::jsonb, -- Tracks causal provenance
     parent_hashes JSONB DEFAULT '[]'::jsonb,-- Upstream claim lineage
+    is_historical BOOLEAN DEFAULT FALSE,    -- F4.4 Compliance: Historical Data Flag
     extracted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
