@@ -2,10 +2,11 @@ import os
 import logging
 import dspy
 import numpy as np
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, OperationalError
 from core.database import SessionLocal
-from models.database import Claim, Contradiction
+from models.database import Claim, Contradiction, EntityBeliefState
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,7 @@ def is_concurrent(clock_a: dict, clock_b: dict) -> bool:
     if not clock_a or not clock_b:
         return True
     if clock_a == clock_b:
-        return True
+        return False # ISSUE-12: equal clocks represent identical logical state, not concurrency
     if not set(clock_a.keys()).intersection(set(clock_b.keys())):
         return True
         
@@ -177,9 +178,7 @@ def has_active_semantic_conflict(db: Session, new_claim_embedding: list, entity_
     
     for c in open_contras:
         claim_a = db.query(Claim).filter(Claim.id == c.claim_a_id).first()
-        # FIX: Safely check for array existence to prevent NumPy truth value errors
         if claim_a and claim_a.embedding is not None and len(claim_a.embedding) > 0:
-            # If the new claim is < 5% distance from the existing ticketed claim, it's part of the same argument.
             if calculate_cosine_distance(new_claim_embedding, claim_a.embedding) <= 0.05:
                 return True
     return False
@@ -201,17 +200,37 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
         
         for new_claim in new_claims:
             
-            # --- LEVEL 0: OBG CENTROID VARIANCE ---
-            cluster_claims = db.query(Claim).filter(Claim.entity_hint == new_claim.entity_hint).all()
-            if len(cluster_claims) > 3:
-                embeddings = [c.embedding for c in cluster_claims if c.embedding is not None and len(c.embedding) > 0]
-                if embeddings:
-                    centroid = np.mean(embeddings, axis=0)
-                    dist_to_centroid = calculate_cosine_distance(new_claim.embedding, centroid)
-                    
-                    if dist_to_centroid < 0.15: 
-                        logger.info(f"LEVEL 0: Claim within OBG consensus variance for '{new_claim.entity_hint}'. Dropped.")
+            # --- F1.1 BOOTSTRAP GATE (ISSUE-14) ---
+            sys_obg = db.query(EntityBeliefState).filter_by(
+                system_id=system_id, 
+                entity_name=new_claim.entity_hint
+            ).first()
+            
+            if not sys_obg or sys_obg.sample_count < 3:
+                logger.info(f"F1.1 Bootstrap: '{new_claim.entity_hint}' has < 3 samples for system {system_id}. Skipping detection.")
+                continue
+
+            # --- LEVEL 0: OBG CENTROID VARIANCE (ISSUE-02) ---
+            other_obgs = db.query(EntityBeliefState).filter(
+                EntityBeliefState.entity_name == new_claim.entity_hint,
+                EntityBeliefState.system_id != system_id
+            ).all()
+            
+            if other_obgs:
+                diverges = False
+                for obg in other_obgs:
+                    # Gate comparison on other system's bootstrap too
+                    if obg.sample_count < 3:
                         continue
+                    
+                    dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
+                    if dist > 0.35:
+                        diverges = True
+                        break
+                        
+                if not diverges:
+                    logger.info(f"LEVEL 0: Claim does not diverge (>0.35) from any other system's OBG for '{new_claim.entity_hint}'. Dropped.")
+                    continue
 
             # --- LEVEL 1: VECTOR CLOCK CAUSALITY ---
             historical_claims = db.query(Claim).filter(
@@ -230,12 +249,13 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 continue
 
             # --- LEVEL 3: HNSW VECTOR SEARCH ---
-            close_neighbors = [
-                neighbor for neighbor in concurrent_claims 
-                if calculate_cosine_distance(new_claim.embedding, neighbor.embedding) <= 0.40
-            ]
+            close_neighbors = []
+            for neighbor in concurrent_claims:
+                dist = calculate_cosine_distance(new_claim.embedding, neighbor.embedding)
+                if dist <= 0.40:
+                    close_neighbors.append((neighbor, dist))
             
-            for neighbor in close_neighbors:
+            for neighbor, distance in close_neighbors:
                 
                 # --- F2.5 Semantic Cluster Suppression ---
                 if has_active_semantic_conflict(db, new_claim.embedding, new_claim.entity_hint):
@@ -245,7 +265,7 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 claim_a_str = f"{new_claim.subject} {new_claim.predicate} {new_claim.object}"
                 claim_b_str = f"{neighbor.subject} {neighbor.predicate} {neighbor.object}"
                 
-                # --- LEVEL 4: Local Neuro-Symbolic NLI (DeBERTa-v3-large) ---
+                # --- LEVEL 4: Local Neuro-Symbolic NLI (DeBERTa) ---
                 result = bouncer.evaluate_pair(claim_a_str, claim_b_str)
                 
                 if result["prediction"] == "CONTRADICTION" and result["confidence"] >= 0.70:
@@ -261,14 +281,24 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                     
                     id_a, id_b = sorted([str(new_claim.id), str(neighbor.id)])
                     
-                    exists = db.query(Contradiction).filter_by(claim_a_id=id_a, claim_b_id=id_b).first()
-                    if not exists:
+                    # --- REG-05: Time-bounded regression dedup logic ---
+                    recent_open = db.query(Contradiction).filter(
+                        Contradiction.claim_a_id == id_a,
+                        Contradiction.claim_b_id == id_b,
+                        Contradiction.status == 'open',
+                        Contradiction.detected_at >= datetime.now(timezone.utc) - timedelta(days=7)
+                    ).first()
+                    
+                    if not recent_open:
                         severity = calculate_severity(new_claim.entity_hint, result["confidence"])
+                        
+                        # REG-04: Store actual cosine similarity instead of 0.85
+                        cosine_similarity = float(1.0 - distance)
                         
                         contra = Contradiction(
                             claim_a_id=id_a,
                             claim_b_id=id_b,
-                            cosine_similarity=0.85, 
+                            cosine_similarity=cosine_similarity, 
                             nli_score=result["confidence"],
                             severity=severity,
                             status="open" 

@@ -17,3 +17,10 @@ export const fetchResolution = async (id) => {
     if (!res.ok) throw new Error("Failed to fetch Resolution");
     return res.json();
 };
+
+// FIX: Added explicit fetch for pending resolutions hitting the correct mounted path
+export const fetchPendingResolutions = async () => {
+    const res = await fetch(`${API_BASE}/resolutions/pending`);
+    if (!res.ok) throw new Error("Failed to fetch pending resolutions");
+    return res.json();
+};

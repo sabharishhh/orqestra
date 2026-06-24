@@ -8,8 +8,11 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 
 logger = logging.getLogger(__name__)
 
+# --- ISSUE-03 FIX: Added critical instruction for normalized entity_hint ---
 EXTRACTION_SYSTEM_PROMPT = """You are a precise operational data extraction engine.
 Your task is to decompose raw text into an explicit array of factual claims represented as Subject-Predicate-Object (SPO) triples with a strict contextual modifier.
+
+CRITICAL: For each claim, you must also generate a normalized `entity_hint`. This must be a broad, high-level categorical concept (e.g., "workout_routine", "refund_policy", "password_requirements") that groups related claims together. Do NOT just repeat the raw subject. Use snake_case.
 
 Return ONLY JSON matching:
 {
@@ -18,7 +21,8 @@ Return ONLY JSON matching:
       "subject": "string",
       "predicate": "string",
       "object": "string",
-      "context": "string"
+      "context": "string",
+      "entity_hint": "string"
     }
   ]
 }"""

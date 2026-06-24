@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import combinations
 from sklearn.cluster import AgglomerativeClustering
 from sqlalchemy.orm import Session
@@ -21,6 +21,10 @@ def calculate_cosine_distance(emb1, emb2):
     if np.linalg.norm(a) == 0 or np.linalg.norm(b) == 0: 
         return 1.0
     return float(1.0 - (np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))))
+
+def get_claim_text(claim: Claim) -> str:
+    """Helper to safely reconstruct the text since claim_text isn't a direct column."""
+    return f"{claim.subject} {claim.predicate} {claim.object}"
 
 def llm_suggest_entity_name(representative_claim: str, sample_claims: list) -> dict:
     """Uses LLM to evaluate the cluster and assign a canonical entity identifier."""
@@ -41,8 +45,7 @@ Provide a short, snake_case canonical name for this concept and classify its typ
     raw = response.choices[0].message.content.strip()
     if raw.startswith('```json'): 
         raw = raw[7:-3]
-    elif raw.startswith('
-```'):
+    elif raw.startswith('```'):
         raw = raw[3:-3]
     return json.loads(raw.strip())
 
@@ -51,7 +54,7 @@ def run_nightly_induction():
     """Worker 5: Unsupervised ontology expansion via Agglomerative Clustering."""
     db: Session = SessionLocal()
     try:
-        cutoff = datetime.utcnow() - timedelta(days=7)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
         
         # 1. Fetch orphaned claims generated in the last 7 days
         unassigned = db.query(Claim).filter(Claim.entity_id == None, Claim.extracted_at >= cutoff).all()
@@ -102,9 +105,10 @@ def run_nightly_induction():
 
             # 5. LLM Canonical Naming
             try:
+                # FIX: Replaced .claim_text with the string formatter helper
                 suggestion = llm_suggest_entity_name(
-                    representative.claim_text,
-                    [c.claim_text for c in cluster_claims[:5]]
+                    get_claim_text(representative),
+                    [get_claim_text(c) for c in cluster_claims[:5]]
                 )
                 name_suggestion = suggestion.get("name", "unknown_entity")
                 suggested_type = suggestion.get("type", "general")
@@ -131,12 +135,12 @@ def run_nightly_induction():
             # 7. Stage Candidate for Human Review
             candidate = InductionCandidate(
                 suggested_name=name_suggestion,
-                aliases=list({c.claim_text[:50] for c in cluster_claims[:5]}),
+                aliases=list({get_claim_text(c)[:50] for c in cluster_claims[:5]}),
                 suggested_type=suggested_type,
                 suggested_importance=min(1.0, variance_score * 2),
                 variance_score=variance_score,
                 claim_frequency=len(cluster_claims),
-                sample_claims={str(s): next((c.claim_text for c in cluster_claims if c.system_id == s), "") for s in unique_systems[:3]}
+                sample_claims={str(s): next((get_claim_text(c) for c in cluster_claims if c.system_id == s), "") for s in unique_systems[:3]}
             )
             db.add(candidate)
         

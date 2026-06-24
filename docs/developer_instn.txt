@@ -30,3 +30,5 @@ python inject_traffic.py
 # see relation data:
 docker compose exec postgres psql -U postgres -d orqestra -c "SELECT entity_type, nli_label, is_hard_negative, feedback_source FROM contrastive_feedback;"
 docker compose exec postgres psql -U postgres -d orqestra -c "SELECT id, feedback_source, nli_label, entity_type, created_at FROM contrastive_feedback ORDER BY created_at DESC LIMIT 5;"
+
+docker compose logs -f worker_extraction

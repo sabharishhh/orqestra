@@ -1,9 +1,9 @@
-import re
 import logging
 from celery import chain
 from core.celery_app import celery_app
 
-# Import our worker logic modules
+# Import our microservices & worker logic
+from services.pii_scrubber import scrub_pii
 from workers.claim_extractor import run_extraction
 from workers.sccg_writer import write_claims_to_sccg
 from workers.obg_updater import update_entity_centroids
@@ -12,20 +12,6 @@ from workers.resolution_agent import generate_resolution
 from workers.alert_dispatcher import send_slack_alert
 
 logger = logging.getLogger(__name__)
-
-def scrub_pii(text: str) -> str:
-    """F5.1 Compliance: Strip PHI/PII before it hits the DB or Embedder."""
-    if not text:
-        return ""
-    # Scrub SSNs
-    text = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED_SSN]', text)
-    # Scrub Emails
-    text = re.sub(r'\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b', '[REDACTED_EMAIL]', text)
-    # Scrub Phone Numbers
-    text = re.sub(r'\b\d{3}[-.\s]??\d{3}[-.\s]??\d{4}\b', '[REDACTED_PHONE]', text)
-    # Scrub Medical Record Numbers (Mock Format)
-    text = re.sub(r'\b[A-Z]{2,3}-\d{6,8}\b', '[REDACTED_MRN]', text)
-    return text
 
 @celery_app.task(bind=True, max_retries=3)
 def process_sample_task(self, system_id: str, text: str, metadata: dict = None):
@@ -133,5 +119,4 @@ def trigger_all_coherence_scores():
 def trigger_finetune_task(entity_type: str):
     """Triggered by feedback_collector when human validation thresholds are met."""
     logger.info(f"🚀 REINFORCEMENT LEARNING KICKOFF: Fine-tuning DeBERTa for domain: {entity_type}")
-    # In a full production build, this invokes an external ML training pipeline
     return {"status": "finetune_started", "domain": entity_type}

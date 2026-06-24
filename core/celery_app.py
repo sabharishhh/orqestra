@@ -1,6 +1,7 @@
 import os
 from celery import Celery
 from celery.schedules import crontab
+from kombu import Queue
 
 # Redis is the standard, high-performance broker for Celery queues
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -9,7 +10,20 @@ celery_app = Celery(
     "orqestra_workers",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["workers.tasks", "workers.feedback_collector"]
+    # FIX: Explicitly include all tasks to prevent "unregistered task" crash
+    include=[
+        "workers.tasks", 
+        "workers.feedback_collector",
+        "workers.auto_induction",
+        "workers.coherence_scorer"
+    ]
+)
+
+# FIX: Explicitly define the queues so DLQ is actually created in Redis
+celery_app.conf.task_queues = (
+    Queue('celery'),
+    Queue('claim_extraction'),
+    Queue('dead_letters'),
 )
 
 celery_app.conf.update(
@@ -23,7 +37,8 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_routes={
-        'workers.tasks.dlq_*': {'queue': 'dead_letters'},
+        # FIX: The exact task name instead of the broken glob pattern
+        'workers.tasks.dlq_handler': {'queue': 'dead_letters'},
     }
 )
 

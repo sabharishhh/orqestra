@@ -7,6 +7,7 @@ from pgvector.sqlalchemy import Vector
 
 Base = declarative_base()
 
+
 class System(Base):
     __tablename__ = 'systems'
     
@@ -14,7 +15,7 @@ class System(Base):
     name = Column(String(255), unique=True, nullable=False)
     provider = Column(String(50), default="openai")
     description = Column(Text)
-    api_key_hash = Column(String(64), unique=True) # ADD THIS LINE
+    api_key_hash = Column(String(64), unique=True) 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class Entity(Base):
@@ -46,6 +47,12 @@ class Claim(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'))
+    entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
+    # --- PHASE 3 FIX: Structural Graph Integrity ---
+    parent_claim_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='SET NULL'), nullable=True) 
+    content_hash = Column(String(64), index=True) 
+    logical_clock = Column(Integer, default=0)
+    
     subject = Column(Text, nullable=False)
     predicate = Column(Text, nullable=False)
     object = Column(Text, nullable=False)
@@ -54,9 +61,8 @@ class Claim(Base):
     embedding = Column(Vector(1536))
     vector_clock = Column(JSONB, default=dict)
     parent_hashes = Column(JSONB, default=list)
-    is_historical = Column(Boolean, default=False) # F4.4 Compliance: Historical Data Flag
+    is_historical = Column(Boolean, default=False) 
     extracted_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
 
 class EntityBeliefState(Base):
     __tablename__ = 'entity_belief_states'
@@ -66,6 +72,13 @@ class EntityBeliefState(Base):
     entity_name = Column(String(255), nullable=False)
     centroid_embedding = Column(Vector(1536))
     sample_count = Column(Integer, default=0)
+    
+    # --- PHASE 3 FIX: Welford's Math & Staleness Metrics ---
+    belief_variance = Column(Float, default=0.0)
+    staleness_score = Column(Float, default=0.0)
+    confidence = Column(Float, default=0.0)
+    recency_weight = Column(Float, default=1.0)
+    first_seen_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     __table_args__ = (UniqueConstraint('system_id', 'entity_name', name='_system_entity_uc'),)
@@ -76,12 +89,16 @@ class Contradiction(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     claim_a_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
     claim_b_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
+    entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
+    # --- PHASE 3 FIX: Dedup Regression Tracking (F2.5) ---
+    regression_of = Column(UUID(as_uuid=True), ForeignKey('contradictions.id', ondelete='SET NULL'), nullable=True)
+    
     cosine_similarity = Column(Float, nullable=False)
     nli_score = Column(Float, nullable=False)
     severity = Column(String(50), nullable=False)
     status = Column(String(50), default='open')
     detected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
+    
     __table_args__ = (UniqueConstraint('claim_a_id', 'claim_b_id', name='unique_claim_pair'),)
 
 class Resolution(Base):

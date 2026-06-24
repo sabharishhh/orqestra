@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS claims (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     system_id UUID REFERENCES systems(id) ON DELETE CASCADE,
     entity_id UUID REFERENCES entities(id) ON DELETE SET NULL, 
+    parent_claim_id UUID REFERENCES claims(id) ON DELETE SET NULL,
+    content_hash VARCHAR(64),
+    logical_clock INTEGER DEFAULT 0,
     subject TEXT NOT NULL,
     predicate TEXT NOT NULL,
     object TEXT NOT NULL,
@@ -51,6 +54,7 @@ CREATE TABLE IF NOT EXISTS claims (
     extracted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX ON claims (content_hash);
 -- F1.6 Guardrail: STRICT HNSW INDEXING (No IVFFlat)
 CREATE INDEX ON claims USING hnsw (embedding vector_cosine_ops);
 
@@ -61,6 +65,11 @@ CREATE TABLE IF NOT EXISTS entity_belief_states (
     entity_name VARCHAR(255) NOT NULL,
     centroid_embedding vector(1536),        
     sample_count INTEGER DEFAULT 0,         
+    belief_variance FLOAT DEFAULT 0.0,
+    staleness_score FLOAT DEFAULT 0.0,
+    confidence FLOAT DEFAULT 0.0,
+    recency_weight FLOAT DEFAULT 1.0,
+    first_seen_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(system_id, entity_name)
 );
@@ -72,6 +81,7 @@ CREATE TABLE IF NOT EXISTS contradictions (
     claim_a_id UUID REFERENCES claims(id) ON DELETE CASCADE,
     claim_b_id UUID REFERENCES claims(id) ON DELETE CASCADE,
     entity_id UUID REFERENCES entities(id) ON DELETE SET NULL, 
+    regression_of UUID REFERENCES contradictions(id) ON DELETE SET NULL,
     cosine_similarity FLOAT NOT NULL,
     nli_score FLOAT NOT NULL,
     severity VARCHAR(50) NOT NULL,

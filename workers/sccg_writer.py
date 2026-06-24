@@ -1,9 +1,9 @@
 import logging
-import hashlib
 from typing import List, Dict
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import Claim
+from services.content_hasher import normalize_and_hash # F1.2 / ISSUE-15 FIX
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ def write_claims_to_sccg(system_id: str, embedded_claims_data: List[Dict]) -> Li
     """
     Writes deeply extracted claims into the SCCG Postgres table.
     Enforces F8.4 Append-Only Guardrails, Level 2 Deduplication,
-    and calculates Dynamic Vector Clocks (Fixes Blocker #3).
+    calculates Dynamic Vector Clocks, and maintains strict Merkle ancestry.
     """
     if not embedded_claims_data:
         return []
@@ -26,26 +26,25 @@ def write_claims_to_sccg(system_id: str, embedded_claims_data: List[Dict]) -> Li
             obj = data["claim"].get("object", data["claim"].get("obj", ""))
             context = data["claim"]["context"]
             
-            # We derive the entity_hint dynamically from the subject
-            entity_hint = str(subject).lower().strip()
+            # --- ISSUE-03 FIX: Entity Hint Normalization ---
+            raw_hint = data["claim"].get("entity_hint", "general")
+            entity_hint = str(raw_hint).lower().strip().replace(" ", "_")
 
-            # --- LEVEL 2: CONTENT HASHING (Cryptographic Deduplication) ---
-            # Create a deterministic fingerprint of the core factual triad
-            raw_string = f"{subject}|{predicate}|{obj}".lower().encode('utf-8')
-            content_hash = hashlib.sha256(raw_string).hexdigest()
+            # --- LEVEL 2: CONTENT HASHING (ISSUE-15 & ISSUE-05 FIX) ---
+            # Uses the external service to strip hedges/noise
+            content_hash = normalize_and_hash(subject, predicate, obj)
             
-            # Check if this exact fact has already been ingested by this system.
+            # Deduplication now correctly uses the dedicated content_hash column, NOT parent_hashes
             is_duplicate = db.query(Claim).filter(
                 Claim.system_id == system_id,
-                Claim.parent_hashes.contains([content_hash])
+                Claim.content_hash == content_hash
             ).first()
             
             if is_duplicate:
                 logger.info(f"Level 2 Funnel: Dropping duplicate claim. Hash [{content_hash[:8]}] already exists for System.")
                 continue
 
-            # --- DYNAMIC VECTOR CLOCK MATH (Fixes Blocker #3) ---
-            # Fetch the previous vector clock for this specific (System + Entity)
+            # --- DYNAMIC VECTOR CLOCK & ANCESTRY MATH ---
             previous_claim = db.query(Claim).filter(
                 Claim.system_id == system_id,
                 Claim.entity_hint == entity_hint
@@ -56,7 +55,12 @@ def write_claims_to_sccg(system_id: str, embedded_claims_data: List[Dict]) -> Li
             
             # Increment the tick for this system's node
             sys_key = str(system_id)
-            new_clock[sys_key] = new_clock.get(sys_key, 0) + 1
+            logical_tick = new_clock.get(sys_key, 0) + 1
+            new_clock[sys_key] = logical_tick
+
+            # F2.4 / ISSUE-05 Fix: Determine true Directed Acyclic Graph (DAG) ancestry
+            parent_claim_id = previous_claim.id if previous_claim else None
+            parent_hashes = [previous_claim.content_hash] if previous_claim and previous_claim.content_hash else []
 
             # --- COMMIT NEW CLAIM ---
             new_claim = Claim(
@@ -67,8 +71,11 @@ def write_claims_to_sccg(system_id: str, embedded_claims_data: List[Dict]) -> Li
                 context=context,
                 entity_hint=entity_hint,
                 embedding=data["embedding"],
-                vector_clock=new_clock,  # Now dynamically incrementing!
-                parent_hashes=[content_hash],  # Store the fingerprint for future deduplication
+                vector_clock=new_clock,
+                content_hash=content_hash,         # Own hash goes here
+                parent_claim_id=parent_claim_id,   # Graph FK goes here
+                parent_hashes=parent_hashes,       # Ancestor hash goes here
+                logical_clock=logical_tick,        # Integer tick goes here
                 is_historical=False # F4.4 Compliance
             )
             db.add(new_claim)

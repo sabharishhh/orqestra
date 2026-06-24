@@ -10,18 +10,19 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 
 logger = logging.getLogger(__name__)
 
-# F2.4 Compliance: Deterministic Causal Parser
-def deterministic_causal_parser(clock_a: dict, clock_b: dict, sys_a_id: str, sys_b_id: str, sys_a_name: str, sys_b_name: str) -> str:
+# F2.4 Compliance: Deterministic Causal Parser (ISSUE-01 Fix)
+def deterministic_causal_parser(claim_a: Claim, claim_b: Claim, sys_a_name: str, sys_b_name: str) -> str:
     """Calculates factual Lowest Common Ancestor to prevent LLM hallucination of time."""
-    tick_b_in_a = clock_a.get(str(sys_b_id), 0)
-    tick_a_in_b = clock_b.get(str(sys_a_id), 0)
+    # Using parent_hashes for cross-system intersection
+    parents_a = set(claim_a.parent_hashes) if claim_a.parent_hashes else set()
+    parents_b = set(claim_b.parent_hashes) if claim_b.parent_hashes else set()
     
-    if tick_b_in_a > 0 and tick_a_in_b == 0:
-        return f"System A ({sys_a_name}) observed System B's state at tick {tick_b_in_a} but chose to execute a conflicting policy anyway."
-    elif tick_a_in_b > 0 and tick_b_in_a == 0:
-        return f"System B ({sys_b_name}) observed System A's state at tick {tick_a_in_b} but chose to execute a conflicting policy anyway."
-    else:
-        return f"Both systems ({sys_a_name} and {sys_b_name}) generated these policies completely independently. Neither system was aware of the other's state at the time of execution."
+    intersection = parents_a.intersection(parents_b)
+    
+    if intersection:
+        return f"Both systems ({sys_a_name} and {sys_b_name}) share a common ancestral context or document. They observed the same base facts but interpreted conflicting policies."
+    
+    return f"Both systems ({sys_a_name} and {sys_b_name}) generated these policies completely independently. Neither system was aware of the other's state at the time of execution."
 
 
 # F5.1 Compliance: Circuit Breaker on LLM via Tenacity
@@ -70,12 +71,11 @@ def generate_resolution(contradiction_id: str):
         
         # 1. Generate the deterministic mathematical truth
         causal_truth = deterministic_causal_parser(
-            claim_a.vector_clock, claim_b.vector_clock, 
-            claim_a.system_id, claim_b.system_id,
+            claim_a, claim_b, 
             sys_a.name, sys_b.name
         )
         
-        # 2. Inject truth into the prompt (Removing raw JSON vector clocks)
+        # 2. Inject truth into the prompt
         prompt = f"""SYSTEM A ({sys_a.name}) Claim: "{claim_a.subject} {claim_a.predicate} {claim_a.object}"
 SYSTEM B ({sys_b.name}) Claim: "{claim_b.subject} {claim_b.predicate} {claim_b.object}"
 
