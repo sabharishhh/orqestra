@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 from core.database import get_db
 from models.database import System
-from api.auth import verify_api_key
+from api.auth import verify_api_key, verify_write_hook_signature
 
 # We will build this Celery task in the next step
 from workers.tasks import process_sample_task 
@@ -53,7 +53,7 @@ async def ingest_batch_samples(system_id: UUID, payload: BatchSamplePayload, db:
     return {"status": "queued", "count": len(payload.samples)}
 
 
-@router.post("/{system_id}/write-hook", status_code=202, dependencies=[Depends(verify_api_key)])
+@router.post("/{system_id}/write-hook", status_code=202, dependencies=[Depends(verify_write_hook_signature)])
 async def agent_write_hook(system_id: UUID, payload: SamplePayload, db: Session = Depends(get_db)):
     """
     Specialized drop-in endpoint for Orqestra SDK Wrappers. 

@@ -185,6 +185,7 @@ def has_active_semantic_conflict(db: Session, new_claim_embedding: list, entity_
 
 
 def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
+    """Worker 4 Phase: Implements the complete 5-Level Detection Funnel in Strict Order."""
     if not updated_entities:
         return []
         
@@ -198,59 +199,68 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
         ).all()
         
         for new_claim in new_claims:
-            # --- F1.1 BOOTSTRAP GATE (ISSUE-14) ---
+            
+            # --- F1.1 BOOTSTRAP GATE ---
+            # Spec: when claim_count < 3, skip Levels 0 & 1 (OBG centroid + vector clock)
+            # and run from Level 3. Do NOT skip detection entirely.
             sys_obg = db.query(EntityBeliefState).filter_by(
                 system_id=system_id, 
                 entity_name=new_claim.entity_hint
             ).first()
             
-            # REVERTED TO < 3 PER V3 SPEC
-            if not sys_obg or sys_obg.sample_count < 3:
-                logger.info(f"F1.1 Bootstrap: '{new_claim.entity_hint}' has < 3 samples for system {system_id}. Skipping detection.")
-                continue
-
-            # --- LEVEL 0: OBG CENTROID VARIANCE (ISSUE-02) ---
-            other_obgs = db.query(EntityBeliefState).filter(
-                EntityBeliefState.entity_name == new_claim.entity_hint,
-                EntityBeliefState.system_id != system_id
-            ).all()
+            is_bootstrapping = not sys_obg or sys_obg.sample_count < 3
             
-            if other_obgs:
-                diverges = False
-                for obg in other_obgs:
-                    if obg.sample_count < 3:
-                        continue
-                    
-                    dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
-                    
-                    # THE FIX: Tighten the threshold to 0.01 because of OpenAI anisotropy!
-                    if dist > 0.01:
-                        diverges = True
-                        break
-                        
-                if not diverges:
-                    logger.info(f"LEVEL 0: Claim does not diverge (>0.01) from any other system's OBG for '{new_claim.entity_hint}'. Dropped.")
-                    continue
-
-            # --- LEVEL 1: VECTOR CLOCK CAUSALITY ---
-            historical_claims = db.query(Claim).filter(
+            # Candidate pool for Level 3 — all historical claims from other systems for this entity
+            all_other_claims = db.query(Claim).filter(
                 Claim.system_id != system_id,
                 Claim.entity_hint == new_claim.entity_hint
             ).all()
             
-            concurrent_claims = []
-            for hist in historical_claims:
-                if is_concurrent(new_claim.vector_clock, hist.vector_clock):
-                    concurrent_claims.append(hist)
-                else:
-                    logger.info(f"LEVEL 1: Chronological update detected for '{new_claim.entity_hint}'. Dropped.")
-                    
-            if not concurrent_claims:
+            if not all_other_claims:
+                logger.info(f"No cross-system claims for '{new_claim.entity_hint}'. Skipping.")
                 continue
+            
+            if is_bootstrapping:
+                # F1.1: Skip Levels 0 & 1, run from Level 3 directly
+                logger.info(f"F1.1 Bootstrap: '{new_claim.entity_hint}' < 3 samples for system {system_id}. Bypassing Levels 0 & 1, entering at Level 3.")
+                level3_candidates = all_other_claims
+            else:
+                # --- LEVEL 0: OBG CENTROID VARIANCE ---
+                other_obgs = db.query(EntityBeliefState).filter(
+                    EntityBeliefState.entity_name == new_claim.entity_hint,
+                    EntityBeliefState.system_id != system_id
+                ).all()
+                
+                if other_obgs:
+                    diverges = False
+                    for obg in other_obgs:
+                        if obg.sample_count < 3:
+                            continue
+                        dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
+                        if dist > 0.35:
+                            diverges = True
+                            break
+                            
+                    if not diverges:
+                        logger.info(f"LEVEL 0: Claim does not diverge (>0.35) from any other system's OBG for '{new_claim.entity_hint}'. Dropped.")
+                        continue
+
+                # --- LEVEL 1: VECTOR CLOCK CAUSALITY ---
+                concurrent_claims = []
+                for hist in all_other_claims:
+                    if is_concurrent(new_claim.vector_clock, hist.vector_clock):
+                        concurrent_claims.append(hist)
+                    else:
+                        logger.info(f"LEVEL 1: Chronological update detected for '{new_claim.entity_hint}'. Dropped.")
+                        
+                if not concurrent_claims:
+                    continue
+                
+                level3_candidates = concurrent_claims
 
             # --- LEVEL 3: HNSW VECTOR SEARCH ---
             close_neighbors = []
-            for neighbor in concurrent_claims:
+            for neighbor in level3_candidates:
                 dist = calculate_cosine_distance(new_claim.embedding, neighbor.embedding)
                 if dist <= 0.40:
                     close_neighbors.append((neighbor, dist))
@@ -267,8 +277,6 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 
                 # --- LEVEL 4: Local Neuro-Symbolic NLI (DeBERTa) ---
                 result = bouncer.evaluate_pair(claim_a_str, claim_b_str)
-
-                logger.info(f"LEVEL 4 Verdict: {result['prediction']} ({result['confidence']:.2f}) | Pair: {claim_a_str[:30]}... vs {claim_b_str[:30]}...")
                 
                 if result["prediction"] == "CONTRADICTION" and result["confidence"] >= 0.70:
                     
