@@ -185,7 +185,6 @@ def has_active_semantic_conflict(db: Session, new_claim_embedding: list, entity_
 
 
 def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
-    """Worker 4 Phase: Implements the complete 5-Level Detection Funnel in Strict Order."""
     if not updated_entities:
         return []
         
@@ -199,14 +198,14 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
         ).all()
         
         for new_claim in new_claims:
-            
             # --- F1.1 BOOTSTRAP GATE (ISSUE-14) ---
             sys_obg = db.query(EntityBeliefState).filter_by(
                 system_id=system_id, 
                 entity_name=new_claim.entity_hint
             ).first()
             
-            if not sys_obg or sys_obg.sample_count < 1:
+            # REVERTED TO < 3 PER V3 SPEC
+            if not sys_obg or sys_obg.sample_count < 3:
                 logger.info(f"F1.1 Bootstrap: '{new_claim.entity_hint}' has < 3 samples for system {system_id}. Skipping detection.")
                 continue
 
@@ -219,17 +218,18 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
             if other_obgs:
                 diverges = False
                 for obg in other_obgs:
-                    # Gate comparison on other system's bootstrap too
-                    if obg.sample_count < 1:
+                    if obg.sample_count < 3:
                         continue
                     
                     dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
-                    if dist > 0.04:
+                    
+                    # THE FIX: Tighten the threshold to 0.01 because of OpenAI anisotropy!
+                    if dist > 0.01:
                         diverges = True
                         break
                         
                 if not diverges:
-                    logger.info(f"LEVEL 0: Claim does not diverge (>0.35) from any other system's OBG for '{new_claim.entity_hint}'. Dropped.")
+                    logger.info(f"LEVEL 0: Claim does not diverge (>0.01) from any other system's OBG for '{new_claim.entity_hint}'. Dropped.")
                     continue
 
             # --- LEVEL 1: VECTOR CLOCK CAUSALITY ---

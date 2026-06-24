@@ -12,12 +12,11 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(queue="claim_extraction")
 def update_coherence_score(system_id: str, window_days: int = 30):
-    """Worker 6: Calculates exponential time-decay coherence score."""
     db: Session = SessionLocal()
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
         
-        # FIX 1: Properly JOIN the Claim table to find out if the system is involved
+        # JOIN via Claim table (Resolves CRASH-01)
         active_contradictions = db.query(Contradiction).join(
             Claim, 
             or_(Contradiction.claim_a_id == Claim.id, Contradiction.claim_b_id == Claim.id)
@@ -27,7 +26,6 @@ def update_coherence_score(system_id: str, window_days: int = 30):
             Contradiction.detected_at >= cutoff
         ).all()
 
-        # Deduplicate results from the OR join
         active_contradictions = list({c.id: c for c in active_contradictions}.values())
 
         if not active_contradictions:
@@ -41,7 +39,6 @@ def update_coherence_score(system_id: str, window_days: int = 30):
             entity = db.query(Entity).filter_by(id=c.entity_id).first() if c.entity_id else None
             importance = entity.importance if entity else 0.5
             
-            # Recency Weight: exp(-0.05 * days_since_detection)
             now = datetime.now(timezone.utc)
             det_time = c.detected_at.replace(tzinfo=timezone.utc) if c.detected_at.tzinfo is None else c.detected_at
             days_old = (now - det_time).days
@@ -49,11 +46,10 @@ def update_coherence_score(system_id: str, window_days: int = 30):
             recency = math.exp(-0.05 * max(0, days_old))
             weight = importance * recency
             
-            # FIX 2: Use nli_score instead of the non-existent contradiction_score
+            # Resolves CRASH-01 (nli_score instead of contradiction_score)
             numerator += c.nli_score * weight
             denominator += weight
 
-        # Final Coherence Calculation
         raw_score = 1.0 - (numerator / denominator) if denominator > 0 else 1.0
         final_score = max(0.0, min(1.0, raw_score))
         
@@ -69,7 +65,6 @@ def update_coherence_score(system_id: str, window_days: int = 30):
         db.close()
 
 def _upsert_score(db: Session, system_id: str, score: float, total_active: int, severity_counts: Counter, window_days: int):
-    """Helper to cleanly upsert the calculated score."""
     existing = db.query(CoherenceScore).filter_by(system_id=system_id).first()
     if existing:
         existing.score = score

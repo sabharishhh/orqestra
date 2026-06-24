@@ -4,7 +4,7 @@ import logging
 import httpx
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
-from models.database import Contradiction, Claim, Resolution, System
+from models.database import Contradiction, Claim, ResolutionProposal, System
 from openai import OpenAI, APIConnectionError, RateLimitError, APITimeoutError
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
@@ -100,7 +100,7 @@ Return ONLY JSON matching:
         
         cost = "$1,200 (Subscription Cancellation + LTV Loss)" if is_high_risk else "$150–$300 (Engineering Resolution)"
         
-        resolution = Resolution(
+        resolution = ResolutionProposal(
             contradiction_id=contradiction_id,
             why_they_contradict=data.get("why_they_contradict", ""),
             likely_stale_system=data.get("likely_stale_system", "Unknown"),

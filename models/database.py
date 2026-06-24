@@ -7,10 +7,8 @@ from pgvector.sqlalchemy import Vector
 
 Base = declarative_base()
 
-
 class System(Base):
     __tablename__ = 'systems'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), unique=True, nullable=False)
     provider = Column(String(50), default="openai")
@@ -20,7 +18,6 @@ class System(Base):
 
 class Entity(Base):
     __tablename__ = 'entities'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     canonical_name = Column(String(255), unique=True, nullable=False)
     aliases = Column(JSONB, default=list)
@@ -30,7 +27,6 @@ class Entity(Base):
 
 class InductionCandidate(Base):
     __tablename__ = 'induction_candidates'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     suggested_name = Column(String(255), nullable=False)
     aliases = Column(JSONB, default=list)
@@ -44,15 +40,13 @@ class InductionCandidate(Base):
 
 class Claim(Base):
     __tablename__ = 'claims'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'))
     entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
-    # --- PHASE 3 FIX: Structural Graph Integrity ---
     parent_claim_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='SET NULL'), nullable=True) 
     content_hash = Column(String(64), index=True) 
     logical_clock = Column(Integer, default=0)
-    
+    event_type = Column(String(50), default="extraction")
     subject = Column(Text, nullable=False)
     predicate = Column(Text, nullable=False)
     object = Column(Text, nullable=False)
@@ -66,43 +60,36 @@ class Claim(Base):
 
 class EntityBeliefState(Base):
     __tablename__ = 'entity_belief_states'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'))
     entity_name = Column(String(255), nullable=False)
     centroid_embedding = Column(Vector(1536))
     sample_count = Column(Integer, default=0)
-    
-    # --- PHASE 3 FIX: Welford's Math & Staleness Metrics ---
     belief_variance = Column(Float, default=0.0)
     staleness_score = Column(Float, default=0.0)
     confidence = Column(Float, default=0.0)
     recency_weight = Column(Float, default=1.0)
+    centroid_history = Column(JSONB, default=list)
     first_seen_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     last_updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
     __table_args__ = (UniqueConstraint('system_id', 'entity_name', name='_system_entity_uc'),)
 
 class Contradiction(Base):
     __tablename__ = 'contradictions'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     claim_a_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
     claim_b_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
     entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
-    # --- PHASE 3 FIX: Dedup Regression Tracking (F2.5) ---
     regression_of = Column(UUID(as_uuid=True), ForeignKey('contradictions.id', ondelete='SET NULL'), nullable=True)
-    
     cosine_similarity = Column(Float, nullable=False)
     nli_score = Column(Float, nullable=False)
     severity = Column(String(50), nullable=False)
     status = Column(String(50), default='open')
     detected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    
     __table_args__ = (UniqueConstraint('claim_a_id', 'claim_b_id', name='unique_claim_pair'),)
 
-class Resolution(Base):
-    __tablename__ = 'resolutions'
+class ResolutionProposal(Base):
+    __tablename__ = 'resolution_proposals'
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contradiction_id = Column(UUID(as_uuid=True), ForeignKey('contradictions.id', ondelete='CASCADE'), unique=True)
     why_they_contradict = Column(Text, nullable=False)
@@ -116,7 +103,6 @@ class Resolution(Base):
 
 class CoherenceScore(Base):
     __tablename__ = 'coherence_scores'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'), unique=True)
     score = Column(Float, default=1.0)
@@ -130,7 +116,6 @@ class CoherenceScore(Base):
 
 class ContrastiveFeedback(Base):
     __tablename__ = 'contrastive_feedback'
-    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contradiction_id = Column(UUID(as_uuid=True), ForeignKey('contradictions.id', ondelete='CASCADE'))
     claim_a_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))

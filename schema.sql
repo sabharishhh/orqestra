@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS induction_candidates (
 );
 
 -- 2. FIRST-DEGREE RELATIONS
--- SCCG: Sparse Causal Claim Graph
 CREATE TABLE IF NOT EXISTS claims (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     system_id UUID REFERENCES systems(id) ON DELETE CASCADE,
@@ -42,6 +41,7 @@ CREATE TABLE IF NOT EXISTS claims (
     parent_claim_id UUID REFERENCES claims(id) ON DELETE SET NULL,
     content_hash VARCHAR(64),
     logical_clock INTEGER DEFAULT 0,
+    event_type VARCHAR(50) DEFAULT 'extraction',
     subject TEXT NOT NULL,
     predicate TEXT NOT NULL,
     object TEXT NOT NULL,
@@ -55,10 +55,8 @@ CREATE TABLE IF NOT EXISTS claims (
 );
 
 CREATE INDEX ON claims (content_hash);
--- F1.6 Guardrail: STRICT HNSW INDEXING (No IVFFlat)
 CREATE INDEX ON claims USING hnsw (embedding vector_cosine_ops);
 
--- OBG: Organizational Belief Graph (Running Centroids)
 CREATE TABLE IF NOT EXISTS entity_belief_states (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     system_id UUID REFERENCES systems(id) ON DELETE CASCADE,
@@ -69,13 +67,13 @@ CREATE TABLE IF NOT EXISTS entity_belief_states (
     staleness_score FLOAT DEFAULT 0.0,
     confidence FLOAT DEFAULT 0.0,
     recency_weight FLOAT DEFAULT 1.0,
+    centroid_history JSONB DEFAULT '[]'::jsonb,
     first_seen_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(system_id, entity_name)
 );
 
 -- 3. SECOND-DEGREE RELATIONS
--- Detected Contradictions (The Edges)
 CREATE TABLE IF NOT EXISTS contradictions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     claim_a_id UUID REFERENCES claims(id) ON DELETE CASCADE,
@@ -91,8 +89,7 @@ CREATE TABLE IF NOT EXISTS contradictions (
 );
 
 -- 4. THIRD-DEGREE RELATIONS
--- Resolutions (The Explainer Output)
-CREATE TABLE IF NOT EXISTS resolutions (
+CREATE TABLE IF NOT EXISTS resolution_proposals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contradiction_id UUID REFERENCES contradictions(id) ON DELETE CASCADE UNIQUE,
     why_they_contradict TEXT NOT NULL,
@@ -105,7 +102,6 @@ CREATE TABLE IF NOT EXISTS resolutions (
     generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Estate Health Metrics
 CREATE TABLE IF NOT EXISTS coherence_scores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     system_id UUID REFERENCES systems(id) ON DELETE CASCADE UNIQUE,
@@ -119,7 +115,6 @@ CREATE TABLE IF NOT EXISTS coherence_scores (
     computed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Reinforcement Learning Dataset (F3.2)
 CREATE TABLE IF NOT EXISTS contrastive_feedback (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contradiction_id UUID REFERENCES contradictions(id) ON DELETE CASCADE,

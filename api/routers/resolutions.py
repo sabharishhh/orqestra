@@ -2,29 +2,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
 from core.database import get_db
-from models.database import Resolution
+from models.database import ResolutionProposal
 from pydantic import BaseModel
 
 router = APIRouter()
 
 class FeedbackRequest(BaseModel):
-    action: str # "accept" or "reject"
+    action: str 
 
-# ==========================================
-# CRITICAL FIX: Static routes MUST come before dynamic /{id} routes!
-# ==========================================
 @router.get("/pending")
 def get_pending_resolutions(db: Session = Depends(get_db)):
-    """Fetch top 5 unresolved resolutions for the React Inbox."""
-    return db.query(Resolution).filter(Resolution.status == "pending").limit(5).all()
+    return db.query(ResolutionProposal).filter(ResolutionProposal.status == "pending").limit(5).all()
 
-# ==========================================
-# DYNAMIC ROUTES
-# ==========================================
 @router.get("/{contradiction_id}")
 def get_resolution_for_contradiction(contradiction_id: UUID, db: Session = Depends(get_db)):
-    """Fetches the AI-generated resolution proposal for a specific contradiction."""
-    resolution = db.query(Resolution).filter(Resolution.contradiction_id == contradiction_id).first()
+    resolution = db.query(ResolutionProposal).filter(ResolutionProposal.contradiction_id == contradiction_id).first()
     
     if not resolution:
         raise HTTPException(status_code=404, detail="Resolution not yet generated or contradiction ID invalid.")
@@ -43,9 +35,7 @@ def get_resolution_for_contradiction(contradiction_id: UUID, db: Session = Depen
 
 @router.post("/{id}/feedback")
 def submit_feedback(id: str, payload: FeedbackRequest, db: Session = Depends(get_db)):
-    """Logs human validation and triggers the RL fine-tuning pipeline."""
-    # 1. Update local status to remove from queue
-    res = db.query(Resolution).filter_by(id=id).first()
+    res = db.query(ResolutionProposal).filter_by(id=id).first()
     if not res:
         raise HTTPException(status_code=404, detail="Resolution not found.")
         
@@ -59,7 +49,6 @@ def submit_feedback(id: str, payload: FeedbackRequest, db: Session = Depends(get
 
     db.commit()
     
-    # 2. Trigger the Reinforcement Learning Celery Task
     from workers.feedback_collector import record_feedback
     record_feedback.delay(id, payload.action)
     

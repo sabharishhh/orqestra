@@ -1,15 +1,16 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y gcc libpq-dev g++ && rm -rf /var/lib/apt/lists/*
 
-# Use UV since you have uv.lock, otherwise fallback to pip
+# Install UV
 RUN pip install uv
 
-# Copy dependencies first for layer caching
-COPY pyproject.toml uv.lock ./
+# --- THE FIX ---
+# Copy .python-version alongside the lockfiles so UV strictly uses 3.13
+COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen
 
 # Copy the rest of the application

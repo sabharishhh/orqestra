@@ -9,7 +9,7 @@ export default function ResolutionsQueue() {
 
   const fetchProposals = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/resolutions/pending', {
+      const res = await fetch('http://localhost:8000/resolutions/pending', {
         headers: { 'Authorization': `Bearer ${API_KEY}` }
       });
       const data = await res.json();
@@ -31,7 +31,7 @@ export default function ResolutionsQueue() {
     setProposals(prev => prev.filter(p => p.id !== id));
     
     try {
-      await fetch(`http://localhost:8000/api/resolutions/${id}/feedback`, {
+      await fetch(`http://localhost:8000/resolutions/${id}/feedback`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
