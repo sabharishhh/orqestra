@@ -8,9 +8,13 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
   
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
+
+volumes:
+  postgres_data:

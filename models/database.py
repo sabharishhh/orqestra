@@ -96,3 +96,30 @@ class Resolution(Base):
     target_uri = Column(String(512))
     status = Column(String(50), default="pending")
     generated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class CoherenceScore(Base):
+    __tablename__ = 'coherence_scores'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'), unique=True)
+    score = Column(Float, default=1.0)
+    active_contradictions = Column(Integer, default=0)
+    critical_count = Column(Integer, default=0)
+    high_count = Column(Integer, default=0)
+    medium_count = Column(Integer, default=0)
+    low_count = Column(Integer, default=0)
+    window_days = Column(Integer, default=30)
+    computed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class ContrastiveFeedback(Base):
+    __tablename__ = 'contrastive_feedback'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contradiction_id = Column(UUID(as_uuid=True), ForeignKey('contradictions.id', ondelete='CASCADE'))
+    claim_a_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
+    claim_b_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
+    entity_type = Column(String(50), default="general")
+    nli_label = Column(String(50), nullable=False)
+    is_hard_negative = Column(Boolean, default=False)
+    feedback_source = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

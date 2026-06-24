@@ -9,7 +9,7 @@ celery_app = Celery(
     "orqestra_workers",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["workers.tasks"]
+    include=["workers.tasks", "workers.feedback_collector"]
 )
 
 celery_app.conf.update(

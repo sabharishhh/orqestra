@@ -94,3 +94,30 @@ CREATE TABLE IF NOT EXISTS resolutions (
     status VARCHAR(50) DEFAULT 'pending',
     generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Estate Health Metrics
+CREATE TABLE IF NOT EXISTS coherence_scores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    system_id UUID REFERENCES systems(id) ON DELETE CASCADE UNIQUE,
+    score FLOAT DEFAULT 1.0,
+    active_contradictions INTEGER DEFAULT 0,
+    critical_count INTEGER DEFAULT 0,
+    high_count INTEGER DEFAULT 0,
+    medium_count INTEGER DEFAULT 0,
+    low_count INTEGER DEFAULT 0,
+    window_days INTEGER DEFAULT 30,
+    computed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Reinforcement Learning Dataset (F3.2)
+CREATE TABLE IF NOT EXISTS contrastive_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    contradiction_id UUID REFERENCES contradictions(id) ON DELETE CASCADE,
+    claim_a_id UUID REFERENCES claims(id) ON DELETE CASCADE,
+    claim_b_id UUID REFERENCES claims(id) ON DELETE CASCADE,
+    entity_type VARCHAR(50) DEFAULT 'general',
+    nli_label VARCHAR(50) NOT NULL,
+    is_hard_negative BOOLEAN DEFAULT FALSE,
+    feedback_source VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

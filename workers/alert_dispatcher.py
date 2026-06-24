@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # In production, this would be your real Slack/Discord Webhook URL
 # For testing, you can grab a free one at https://webhook.site/
-WEBHOOK_URL = os.environ.get("ORQESTRA_SLACK_WEBHOOK_URL", "https://webhook.site/f8fb3d5d-e5eb-4594-898c-f4db4824821c")
+WEBHOOK_URL = os.environ.get("ORQESTRA_SLACK_WEBHOOK_URL", "https://webhook.site/db8392b3-f128-4887-b854-6ded1f0a2a7c")
 
 def send_slack_alert(resolution_id: str):
     """Worker 6 Phase: Dispatches high-severity alerts to external systems."""

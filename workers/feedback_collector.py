@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
-from models.database import Contradiction, ResolutionProposal, ContrastiveFeedback, Entity
+from models.database import Contradiction, Resolution, ContrastiveFeedback, Entity
 from core.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,8 @@ def record_feedback(proposal_id: str, action: str):
     """Worker 8: Contrastive feedback loop for Reinforcement Learning."""
     db: Session = SessionLocal()
     try:
-        proposal = db.query(ResolutionProposal).filter_by(id=proposal_id).first()
+        # FIXED: Querying the Resolution table
+        proposal = db.query(Resolution).filter_by(id=proposal_id).first()
         if not proposal:
             logger.error(f"Feedback Collector: Proposal {proposal_id} not found.")
             return
