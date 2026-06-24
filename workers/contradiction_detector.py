@@ -206,7 +206,7 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 entity_name=new_claim.entity_hint
             ).first()
             
-            if not sys_obg or sys_obg.sample_count < 3:
+            if not sys_obg or sys_obg.sample_count < 1:
                 logger.info(f"F1.1 Bootstrap: '{new_claim.entity_hint}' has < 3 samples for system {system_id}. Skipping detection.")
                 continue
 
@@ -220,11 +220,11 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 diverges = False
                 for obg in other_obgs:
                     # Gate comparison on other system's bootstrap too
-                    if obg.sample_count < 3:
+                    if obg.sample_count < 1:
                         continue
                     
                     dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
-                    if dist > 0.35:
+                    if dist > 0.04:
                         diverges = True
                         break
                         
@@ -267,6 +267,8 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 
                 # --- LEVEL 4: Local Neuro-Symbolic NLI (DeBERTa) ---
                 result = bouncer.evaluate_pair(claim_a_str, claim_b_str)
+
+                logger.info(f"LEVEL 4 Verdict: {result['prediction']} ({result['confidence']:.2f}) | Pair: {claim_a_str[:30]}... vs {claim_b_str[:30]}...")
                 
                 if result["prediction"] == "CONTRADICTION" and result["confidence"] >= 0.70:
                     

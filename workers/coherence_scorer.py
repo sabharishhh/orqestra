@@ -1,10 +1,11 @@
 import math
 import logging
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from core.database import SessionLocal
-from models.database import Contradiction, CoherenceScore, Entity
+from models.database import Contradiction, CoherenceScore, Entity, Claim
 from core.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -14,12 +15,20 @@ def update_coherence_score(system_id: str, window_days: int = 30):
     """Worker 6: Calculates exponential time-decay coherence score."""
     db: Session = SessionLocal()
     try:
-        cutoff = datetime.utcnow() - timedelta(days=window_days)
-        active_contradictions = db.query(Contradiction).filter(
-            Contradiction.system_a_id == system_id,  # Needs proper OR logic for sys_b in production schema
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+        
+        # FIX 1: Properly JOIN the Claim table to find out if the system is involved
+        active_contradictions = db.query(Contradiction).join(
+            Claim, 
+            or_(Contradiction.claim_a_id == Claim.id, Contradiction.claim_b_id == Claim.id)
+        ).filter(
+            Claim.system_id == system_id,
             Contradiction.status == 'open',
             Contradiction.detected_at >= cutoff
         ).all()
+
+        # Deduplicate results from the OR join
+        active_contradictions = list({c.id: c for c in active_contradictions}.values())
 
         if not active_contradictions:
             _upsert_score(db, system_id, 1.0, 0, Counter(), window_days)
@@ -33,11 +42,15 @@ def update_coherence_score(system_id: str, window_days: int = 30):
             importance = entity.importance if entity else 0.5
             
             # Recency Weight: exp(-0.05 * days_since_detection)
-            days_old = (datetime.utcnow() - c.detected_at).days
-            recency = math.exp(-0.05 * days_old)
+            now = datetime.now(timezone.utc)
+            det_time = c.detected_at.replace(tzinfo=timezone.utc) if c.detected_at.tzinfo is None else c.detected_at
+            days_old = (now - det_time).days
             
+            recency = math.exp(-0.05 * max(0, days_old))
             weight = importance * recency
-            numerator += c.contradiction_score * weight
+            
+            # FIX 2: Use nli_score instead of the non-existent contradiction_score
+            numerator += c.nli_score * weight
             denominator += weight
 
         # Final Coherence Calculation
@@ -65,7 +78,7 @@ def _upsert_score(db: Session, system_id: str, score: float, total_active: int, 
         existing.high_count = severity_counts.get("high", 0)
         existing.medium_count = severity_counts.get("medium", 0)
         existing.low_count = severity_counts.get("low", 0)
-        existing.computed_at = datetime.utcnow()
+        existing.computed_at = datetime.now(timezone.utc)
     else:
         new_score = CoherenceScore(
             system_id=system_id,
