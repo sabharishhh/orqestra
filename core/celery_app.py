@@ -53,3 +53,7 @@ celery_app.conf.beat_schedule = {
         'schedule': crontab(minute=0), # Runs at the top of every hour
     }
 }
+celery_app.conf.beat_schedule["hourly-canary-check"] = {
+    "task": "workers.canary_injector.run_canary_check",
+    "schedule": crontab(minute=15),  # 15 min past every hour
+}

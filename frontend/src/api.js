@@ -24,3 +24,6 @@ export const fetchPendingResolutions = async () => {
     if (!res.ok) throw new Error("Failed to fetch pending resolutions");
     return res.json();
 };
+
+export const fetchLineage = (contradictionId) =>
+    fetch(`${BASE}/graph/lineage/${contradictionId}`).then(r => r.json());

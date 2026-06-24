@@ -31,6 +31,10 @@ def get_active_contradictions(status: str = "open", limit: int = 50, db: Session
             "entity_hint": claim_a.entity_hint,
             "nli_score": c.nli_score,
             "detected_at": c.detected_at,
+            "lca_claim_id": str(c.lca_claim_id) if c.lca_claim_id else None,
+            "fork_distance_a": c.fork_distance_a,
+            "fork_distance_b": c.fork_distance_b,
+            "has_shared_ancestor": c.lca_claim_id is not None,
             "system_a": {
                 "name": sys_a.name if sys_a else "Unknown",
                 "claim": f"{claim_a.subject} {claim_a.predicate} {claim_a.object}"

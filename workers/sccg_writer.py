@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import Claim
 from services.content_hasher import normalize_and_hash # F1.2 / ISSUE-15 FIX
+from services.entity_resolver import resolve_entity_hint
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,11 @@ def write_claims_to_sccg(system_id: str, embedded_claims_data: List[Dict]) -> Li
             
             # --- ISSUE-03 FIX: Entity Hint Normalization ---
             raw_hint = data["claim"].get("entity_hint", "general")
-            entity_hint = str(raw_hint).lower().strip().replace(" ", "_")
+            entity_hint = resolve_entity_hint(
+                raw_hint,
+                embedding=data["embedding"],
+                db=db
+            )
 
             # --- LEVEL 2: CONTENT HASHING (ISSUE-15 & ISSUE-05 FIX) ---
             # Uses the external service to strip hedges/noise

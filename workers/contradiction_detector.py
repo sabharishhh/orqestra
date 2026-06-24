@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, OperationalError
 from core.database import SessionLocal
 from models.database import Claim, Contradiction, EntityBeliefState
+from services.nli_classifier import classify_pair
 
 logger = logging.getLogger(__name__)
 
@@ -276,7 +277,7 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 claim_b_str = f"{neighbor.subject} {neighbor.predicate} {neighbor.object}"
                 
                 # --- LEVEL 4: Local Neuro-Symbolic NLI (DeBERTa) ---
-                result = bouncer.evaluate_pair(claim_a_str, claim_b_str)
+                result = classify_pair(claim_a_str, claim_b_str)
                 
                 if result["prediction"] == "CONTRADICTION" and result["confidence"] >= 0.70:
                     
