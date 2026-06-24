@@ -10,19 +10,34 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orqestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
-  # F5.4 Compliance: PgBouncer for Celery Pool Connection Management
+  # F5.4: PgBouncer — production connection pooling (not in dev connection path)
+  # pgbouncer/pgbouncer:latest is amd64-only; runs under emulation on ARM and
+  # produces unstable auth behaviour. Services connect to postgres directly in dev.
   pgbouncer:
     image: pgbouncer/pgbouncer:latest
     ports:
-      - "6432:5432"
-
-    volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
-      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
-
+      - "6432:6432"
+    environment:
+      DATABASES_HOST: postgres
+      DATABASES_PORT: "5432"
+      DATABASES_USER: postgres
+      DATABASES_PASSWORD: password
+      DATABASES_DBNAME: orqestra
+      PGBOUNCER_AUTH_TYPE: trust
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_MAX_CLIENT_CONN: "1000"
+      PGBOUNCER_DEFAULT_POOL_SIZE: "40"
+      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: extra_float_digits
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:alpine
@@ -34,58 +49,68 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@pgbouncer:5432/orqestra
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - pgbouncer
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   # WORKER 1: claim_extraction queue
   worker_extraction:
     build: .
     command: celery -A core.celery_app worker -Q claim_extraction --concurrency=2 --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://postgres:password@pgbouncer:5432/orqestra
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - pgbouncer
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   # WORKER 2: Default queue (SCCG writing, OBG updating, Contradictions)
   worker_default:
     build: .
     command: celery -A core.celery_app worker -Q celery --concurrency=4 --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://postgres:password@pgbouncer:5432/orqestra
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - pgbouncer
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   # WORKER 3: Dead Letter Queue handler
   worker_dlq:
     build: .
     command: celery -A core.celery_app worker -Q dead_letters --concurrency=1 --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://postgres:password@pgbouncer:5432/orqestra
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - pgbouncer
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   # WORKER 4: The Scheduler
   worker_beat:
     build: .
     command: celery -A core.celery_app beat --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://postgres:password@pgbouncer:5432/orqestra
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - pgbouncer
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   frontend:
     build: ./frontend
