@@ -10,24 +10,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    command: >
-      postgres
-      -c password_encryption=md5
 
   # F5.4 Compliance: PgBouncer for Celery Pool Connection Management
   pgbouncer:
-    image: edoburu/pgbouncer:latest
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: password
-      DB_NAME: orqestra
-
-      MAX_CLIENT_CONN: 1000
-      DEFAULT_POOL_SIZE: 40
+    image: pgbouncer/pgbouncer:latest
     ports:
-      - "6432:6432"
+      - "6432:5432"
+
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+
     depends_on:
       - postgres
 
