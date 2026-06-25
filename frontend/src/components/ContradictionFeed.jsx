@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { fetchContradictions, fetchResolution } from '../api';
+import ContradictionLineageTree from './ContradictionLineageTree';
+import { Network, Wand2 } from 'lucide-react';
 
 export default function ContradictionFeed() {
     const [conflicts, setConflicts] = useState([]);
     const [resolutions, setResolutions] = useState({});
     const [loadingId, setLoadingId] = useState(null);
+    const [openLineageId, setOpenLineageId] = useState(null);
 
     useEffect(() => {
         fetchContradictions().then(setConflicts).catch(console.error);
@@ -34,7 +37,7 @@ export default function ContradictionFeed() {
     };
 
     return (
-        <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl h-[600px] flex flex-col overflow-hidden">
+        <div className="bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl h-[calc(100vh-12rem)] flex flex-col overflow-hidden">
             
             {/* Sidebar Header */}
             <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/50">
@@ -50,17 +53,20 @@ export default function ContradictionFeed() {
                 </span>
             </div>
             
-            {/* Scrollable Container (Custom Webkit Scrollbar styling) */}
+            {/* Scrollable Container */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                 
                 {conflicts.length === 0 && (
-                    <div className="text-center mt-10 text-slate-500 text-sm font-mono">
+                    <div className="text-center mt-10 text-slate-500 text-sm font-mono flex flex-col items-center">
+                        <Network className="w-12 h-12 mb-4 opacity-20" />
                         Estate is currently coherent.
                     </div>
                 )}
                 
                 {conflicts.map(c => {
                     const colors = getSeverityColor(c.severity);
+                    const isLineageOpen = openLineageId === c.id;
+
                     return (
                     <div key={c.id} className={`bg-slate-900 border rounded-xl shadow-lg border-l-4 ${colors.split(' ')[3]} border-slate-800 transition-all duration-300`}>
                         <div className={`px-4 py-3 border-b border-slate-800/50 flex justify-between items-center ${colors.split(' ')[0]}`}>
@@ -74,24 +80,44 @@ export default function ContradictionFeed() {
                             <div className="space-y-4 mb-5">
                                 <div>
                                     <div className="text-[9px] text-slate-500 uppercase font-bold mb-1 tracking-wider">🖥️ {c.system_a.name}</div>
-                                    <div className="font-mono text-xs text-slate-300 leading-relaxed bg-slate-950/50 p-2 rounded border border-slate-800/50">"{c.system_a.claim}"</div>
+                                    <div className="font-mono text-xs text-slate-300 leading-relaxed bg-slate-950/50 p-3 rounded border border-slate-800/50">"{c.system_a.claim}"</div>
                                 </div>
                                 <div>
                                     <div className="text-[9px] text-slate-500 uppercase font-bold mb-1 tracking-wider">🖥️ {c.system_b.name}</div>
-                                    <div className="font-mono text-xs text-slate-300 leading-relaxed bg-slate-950/50 p-2 rounded border border-slate-800/50">"{c.system_b.claim}"</div>
+                                    <div className="font-mono text-xs text-slate-300 leading-relaxed bg-slate-950/50 p-3 rounded border border-slate-800/50">"{c.system_b.claim}"</div>
                                 </div>
                             </div>
 
-                            {!resolutions[c.id] ? (
+                            {/* Action Buttons */}
+                            <div className="flex gap-3">
+                                {!resolutions[c.id] ? (
+                                    <button 
+                                        onClick={() => loadResolution(c.id)}
+                                        disabled={loadingId === c.id}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-400 py-2 rounded-lg font-medium text-xs transition-all disabled:opacity-50"
+                                    >
+                                        <Wand2 className="w-3.5 h-3.5" />
+                                        {loadingId === c.id ? 'Analyzing...' : 'Generate Resolution'}
+                                    </button>
+                                ) : (
+                                    <div className="flex-1 bg-green-500/10 border border-green-500/30 text-green-400 py-2 rounded-lg font-medium text-xs text-center flex items-center justify-center gap-2">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        Resolution Generated
+                                    </div>
+                                )}
+                                
                                 <button 
-                                    onClick={() => loadResolution(c.id)}
-                                    disabled={loadingId === c.id}
-                                    className="w-full bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-400 py-2 rounded-lg font-medium text-xs transition-all disabled:opacity-50"
+                                    onClick={() => setOpenLineageId(isLineageOpen ? null : c.id)}
+                                    className={`px-4 py-2 flex items-center justify-center gap-2 rounded-lg font-medium text-xs transition-all border ${isLineageOpen ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700 text-slate-300'}`}
                                 >
-                                    {loadingId === c.id ? 'Analyzing...' : 'Generate Resolution Proposal'}
+                                    <Network className="w-3.5 h-3.5" />
+                                    {isLineageOpen ? 'Hide Lineage' : 'View Lineage'}
                                 </button>
-                            ) : (
-                                <div className="pt-4 border-t border-slate-800/80 space-y-4 animate-in fade-in slide-in-from-top-2">
+                            </div>
+
+                            {/* Resolution Dropdown */}
+                            {resolutions[c.id] && (
+                                <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-4 animate-in fade-in slide-in-from-top-2">
                                     <div>
                                         <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">Diagnosis</h4>
                                         <p className="text-slate-300 text-xs leading-relaxed">{resolutions[c.id].why_they_contradict}</p>
@@ -107,6 +133,13 @@ export default function ContradictionFeed() {
                                             {resolutions[c.id].target_uri}
                                         </code>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Causal Lineage Tree Dropdown */}
+                            {isLineageOpen && (
+                                <div className="mt-4 pt-4 border-t border-slate-800/80 animate-in fade-in slide-in-from-top-2">
+                                    <ContradictionLineageTree contradictionId={c.id} />
                                 </div>
                             )}
                         </div>

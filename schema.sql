@@ -138,3 +138,110 @@ CREATE TABLE IF NOT EXISTS contrastive_feedback (
     feedback_source VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- =====================================================
+-- MULTI-TENANT CONFIG LAYER (Sprint 1.1)
+-- =====================================================
+
+-- 5. ORGANIZATIONS
+-- Top-level tenant boundary. All claims, systems, configs scoped here.
+CREATE TABLE IF NOT EXISTS organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) UNIQUE NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL,             -- URL-safe identifier (e.g. 'demo-fitness')
+    vertical_preset VARCHAR(50) DEFAULT 'general', -- 'general' | 'consumer' | 'clinical' | 'finance' | 'legal' | 'policy'
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_slug ON organizations(slug);
+
+
+-- 6. CANONICAL ENTITIES (per-org closed vocabulary)
+-- Replaces the hardcoded CANONICAL_ENTITIES dict in entity_resolver.py.
+-- Each entity carries its category (for threshold routing) and severity weights.
+CREATE TABLE IF NOT EXISTS canonical_entities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    canonical_name VARCHAR(255) NOT NULL,
+    description TEXT,                              -- human-readable note (used in extraction prompt)
+    category VARCHAR(50) NOT NULL DEFAULT 'general', -- routes to category_thresholds
+    importance FLOAT DEFAULT 0.5,                  -- coherence-score weighting
+    severity_tier VARCHAR(50) DEFAULT 'high',      -- 'critical' | 'high' | 'medium' | 'low'
+    cost_critical_usd INTEGER DEFAULT 5000,        -- dollar weight when severity=critical
+    cost_high_usd INTEGER DEFAULT 1000,            -- dollar weight when severity=high
+    source VARCHAR(50) DEFAULT 'manual',           -- 'preset' | 'manual' | 'induced'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(org_id, canonical_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_canonical_org_name ON canonical_entities(org_id, canonical_name);
+CREATE INDEX IF NOT EXISTS idx_canonical_org_category ON canonical_entities(org_id, category);
+
+
+-- 7. ENTITY ALIASES (flat lookup table — O(1) resolution)
+-- One row per (canonical, alias) pair. Faster than JSONB-array search.
+CREATE TABLE IF NOT EXISTS entity_aliases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    canonical_entity_id UUID NOT NULL REFERENCES canonical_entities(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,  -- denorm for fast WHERE
+    alias VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(org_id, alias)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alias_lookup ON entity_aliases(org_id, alias);
+
+
+-- 8. DETECTION CONFIG (per-org tuning of all magic numbers in the funnel)
+CREATE TABLE IF NOT EXISTS detection_config (
+    org_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+    -- Funnel tuning
+    bootstrap_min_samples INTEGER DEFAULT 3,
+    high_variance_threshold FLOAT DEFAULT 0.40,
+    semantic_match_threshold FLOAT DEFAULT 0.55,
+    -- Auto-induction
+    cluster_min_size INTEGER DEFAULT 5,
+    cluster_merge_threshold FLOAT DEFAULT 0.20,
+    induction_lookback_days INTEGER DEFAULT 7,
+    induction_cluster_threshold FLOAT DEFAULT 0.35,
+    -- Suppression / dedup
+    regression_dedup_days INTEGER DEFAULT 7,
+    semantic_suppression_distance FLOAT DEFAULT 0.05,
+    -- Scoring
+    coherence_window_days INTEGER DEFAULT 30,
+    recency_decay_lambda FLOAT DEFAULT 0.05,
+    nli_confidence_floor FLOAT DEFAULT 0.70,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- 9. CATEGORY THRESHOLDS (per-org per-category cosine thresholds)
+-- Replaces the hardcoded COSINE_THRESHOLDS dict in services/detection_threshold.py.
+CREATE TABLE IF NOT EXISTS category_thresholds (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    category VARCHAR(50) NOT NULL,
+    level_0_cosine FLOAT NOT NULL,                 -- OBG centroid divergence threshold
+    level_3_cosine FLOAT NOT NULL,                 -- HNSW neighbor distance threshold
+    nli_floor FLOAT,                               -- nullable; falls back to detection_config.nli_confidence_floor
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(org_id, category)
+);
+
+CREATE INDEX IF NOT EXISTS idx_category_thresholds_lookup ON category_thresholds(org_id, category);
+
+
+-- 10. PII ALLOWLIST (per-org, vertical-specific safe tokens)
+-- Replaces the hardcoded CLINICAL_ALLOWLIST set in services/pii_scrubber.py.
+CREATE TABLE IF NOT EXISTS pii_allowlist (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    token VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(org_id, token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pii_allowlist ON pii_allowlist(org_id);
