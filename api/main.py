@@ -18,17 +18,57 @@ app = FastAPI(
 # Strict CORS for Dashboard Isolation
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Update to specific dashboard domains in production
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST"], # F8.4 Guardrail: No PUT/DELETE allowed globally
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 
-# Health Check
+def _ensure_demo_org_seeded() -> None:
+    """Idempotent boot-time seed of the demo-fitness organization."""
+    try:
+        from core.database import SessionLocal
+        from models.database import Organization, DetectionConfig
+        from scripts.seed_org import seed
+    except Exception as e:
+        logger.warning(f"Auto-seed skipped — import failed: {e}")
+        return
+
+    db = SessionLocal()
+    try:
+        org = db.query(Organization).filter_by(slug="demo-fitness").first()
+        has_config = False
+        if org is not None:
+            has_config = db.query(DetectionConfig).filter_by(org_id=org.id).first() is not None
+
+        if org and has_config:
+            logger.info(f"Auto-seed: demo-fitness already seeded (org_id={org.id}). Skipping.")
+            return
+
+        logger.info("Auto-seed: demo-fitness incomplete — running seed against presets/consumer.yaml")
+        org_id = seed(
+            name="Demo Fitness",
+            slug="demo-fitness",
+            preset_name="consumer",
+            description="Seeded automatically on API startup",
+        )
+        logger.info(f"Auto-seed: complete (org_id={org_id})")
+    except Exception as e:
+        logger.error(f"Auto-seed FAILED (non-fatal — defaults will be used): {e}")
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+async def on_startup():
+    _ensure_demo_org_seeded()
+
+
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "operational", "engine": "Orqestra v3.0"}
+
 
 # Mount Routers
 app.include_router(admin.router, prefix="/admin", tags=["admin"])

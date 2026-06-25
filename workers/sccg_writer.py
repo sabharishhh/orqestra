@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import Claim
 from services.content_hasher import normalize_and_hash # F1.2 / ISSUE-15 FIX
-from services.entity_resolver import resolve_entity_hint
+from services.entity_resolver import _resolve_legacy as resolve_entity_hint
 
 logger = logging.getLogger(__name__)
 

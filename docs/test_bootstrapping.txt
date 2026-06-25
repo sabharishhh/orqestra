@@ -1,0 +1,25 @@
+docker compose logs api
+
+docker compose exec postgres psql -U postgres -d orqestra -c "
+SELECT
+  (SELECT COUNT(*) FROM organizations)      AS orgs,
+  (SELECT COUNT(*) FROM detection_config)   AS configs,
+  (SELECT COUNT(*) FROM canonical_entities) AS entities;
+
+
+output:
+  orgs | configs | entities 
+------+---------+----------
+    1 |       1 |        8
+(1 row)
+
+docker compose exec redis redis-cli FLUSHDB
+docker compose exec api python -c "
+from services.severity_scorer import calculate_severity_and_cost
+from services.config_loader import get_org_id_by_slug
+org_id = get_org_id_by_slug('demo-fitness')
+r = calculate_severity_and_cost(org_id, 'activity_limit', nli_confidence=0.92)
+print(f'{r.severity} / \${r.cost_usd}')
+"
+
+output: critical / $10000

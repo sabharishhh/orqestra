@@ -1,28 +1,200 @@
-# Stub for Sprint 1.4 CLI testing. Full vocabulary lands in Sprint 1.5.
+# =====================================================
+# CONSUMER VERTICAL PRESET
+# Consumer apps, fitness, wellness, retail, B2C SaaS.
+#
+# This file faithfully reproduces the hardcoded fitness vocabulary
+# from services/entity_resolver.py, services/detection_threshold.py,
+# workers/contradiction_detector.py, workers/resolution_agent.py,
+# and api/routers/roi.py as it exists at the close of Sprint 1.5.
+#
+# After Sprint 3.x wires the services, the hardcoded constants in
+# those files get deleted. This YAML becomes the only source of truth.
+# =====================================================
 preset_name: consumer
-description: Consumer apps, fitness, wellness — full vocabulary pending
+description: Consumer apps, fitness, wellness, retail, B2C SaaS
 
+# -----------------------------------------------------
+# DETECTION CONFIG — funnel tuning, dedup windows, scoring
+# Mirrors the current hardcoded values across the codebase.
+# -----------------------------------------------------
 detection_config:
-  bootstrap_min_samples: 3
-  nli_confidence_floor: 0.70
-  regression_dedup_days: 7
-  coherence_window_days: 30
+  # Funnel
+  bootstrap_min_samples: 3                  # F1.1 — was hardcoded `< 3` in detector
+  high_variance_threshold: 0.40             # F1.5 — services/detection_threshold.py
+  semantic_match_threshold: 0.55            # was hardcoded in entity_resolver.py
 
+  # Auto-induction
+  cluster_min_size: 5                       # workers/auto_induction.py
+  cluster_merge_threshold: 0.20             # F6.1 — auto_induction.py
+  induction_lookback_days: 7                # auto_induction.py
+  induction_cluster_threshold: 0.35         # auto_induction.py
+
+  # Suppression / dedup
+  regression_dedup_days: 7                  # REG-05 — contradiction_detector.py
+  semantic_suppression_distance: 0.05       # F2.5 — contradiction_detector.py
+
+  # Scoring
+  coherence_window_days: 30                 # coherence_scorer.py
+  recency_decay_lambda: 0.05                # coherence_scorer.py
+  nli_confidence_floor: 0.70                # Level 4 floor — contradiction_detector.py
+
+# -----------------------------------------------------
+# CATEGORY THRESHOLDS — per-category Level 0 & 3 cosines
+# Mirrors services/detection_threshold.py COSINE_THRESHOLDS.
+# -----------------------------------------------------
 category_thresholds:
+  - category: clinical
+    level_0_cosine: 0.25
+    level_3_cosine: 0.30
+    nli_floor: 0.60                         # tighter — false negatives expensive
+  - category: compliance
+    level_0_cosine: 0.25
+    level_3_cosine: 0.30
+    nli_floor: 0.65
+  - category: pricing
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+  - category: policy
+    level_0_cosine: 0.35
+    level_3_cosine: 0.40
   - category: consumer
-    level_0_cosine: 0.40
+    level_0_cosine: 0.40                    # looser — paraphrase tolerance
     level_3_cosine: 0.45
   - category: general
     level_0_cosine: 0.35
     level_3_cosine: 0.40
 
+# -----------------------------------------------------
+# CANONICAL ENTITIES — the closed vocabulary
+# Mirrors services/entity_resolver.py CANONICAL_ENTITIES,
+# plus severity & cost coefficients pulled from
+# workers/resolution_agent.py and api/routers/roi.py.
+# -----------------------------------------------------
 canonical_entities:
-  - name: stub_entity
-    aliases: [test_alias]
-    category: general
-    severity_tier: low
-    importance: 0.1
 
+  - name: workout_schedule
+    description: Weekly training days, rest day allocation, training cadence
+    category: consumer
+    severity_tier: high
+    importance: 0.85
+    cost_high_usd: 1200                     # LTV loss (resolution_agent.py)
+    cost_critical_usd: 5000
+    aliases:
+      - weekly_schedule
+      - training_days
+      - rest_days
+      - weekly_training_plan
+      - exercise_schedule
+
+  - name: workout_routine
+    description: Specific exercises, movement selection, what to do or avoid (injury-risk surface)
+    category: consumer
+    severity_tier: high                     # injury risk — squats-vs-avoid-squats
+    importance: 0.90
+    cost_high_usd: 1200
+    cost_critical_usd: 5000
+    aliases:
+      - exercises
+      - exercise_selection
+      - movement_protocol
+      - exercise_duration_limit
+      - workout_exercises
+      - training_routine
+      - workout_routine_exercises
+
+  - name: meal_plan
+    description: Food choices, meal selection, organic/processed/restricted plans
+    category: consumer
+    severity_tier: high
+    importance: 0.75
+    cost_high_usd: 1200
+    cost_critical_usd: 5000
+    aliases:
+      - meal_plan_selection
+      - meal_plan_requirements
+      - food_selection
+      - diet_plan
+      - nutrition_plan
+      - monthly_food_selection
+
+  - name: nutrition_macros
+    description: Calorie targets, macro breakdown, deficit/surplus directives
+    category: consumer
+    severity_tier: medium
+    importance: 0.65
+    cost_high_usd: 600
+    cost_critical_usd: 2500
+    aliases:
+      - dietary_macros
+      - macro_breakdown
+      - calorie_target
+      - calorie_deficit
+      - calorie_deficit_targets
+
+  - name: sleep_target
+    description: Sleep duration / nighttime rest directives
+    category: consumer
+    severity_tier: medium
+    importance: 0.55
+    cost_high_usd: 300
+    cost_critical_usd: 1500
+    aliases:
+      - sleep_duration
+      - rest_target
+      - nighttime_sleep
+
+  - name: activity_limit
+    description: Session duration caps, continuous activity ceilings (medical-adjacent)
+    category: consumer
+    severity_tier: critical                 # heart rate / session duration affects health
+    importance: 0.95
+    cost_high_usd: 2000
+    cost_critical_usd: 10000
+    aliases:
+      - session_duration
+      - exercise_session_limit
+      - continuous_activity
+
+  - name: food_budget_policy
+    description: Food spend rules, meal cost policy, organic/budget tradeoffs
+    category: consumer
+    severity_tier: medium
+    importance: 0.50
+    cost_high_usd: 600
+    cost_critical_usd: 2500
+    aliases:
+      - food_budgeting
+      - food_selection_policy
+      - meal_cost_policy
+      - food_expense_policy
+      - cost_reduction
+
+  - name: fitness_budget_policy
+    description: Gym memberships, equipment spend, home-vs-gym tradeoffs
+    category: consumer
+    severity_tier: medium
+    importance: 0.45
+    cost_high_usd: 600
+    cost_critical_usd: 2500
+    aliases:
+      - gym_membership
+      - fitness_budget
+      - membership_choice
+      - fitness_expense_policy
+
+# -----------------------------------------------------
+# PII ALLOWLIST — vertical-specific safe tokens NER won't redact
+# Consumer wellness gets clinical units since fitness apps log them.
+# -----------------------------------------------------
 pii_allowlist:
   - mg
+  - ml
   - kg
+  - bpm
+  - cal
+  - kcal
+  - lbs
+  - reps
+  - sets
+  - min
+  - hr
