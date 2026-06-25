@@ -39,7 +39,7 @@ def process_sample_task(self, system_id: str, text: str, metadata: dict = None):
 def extract_and_embed_task(self, system_id: str, text: str, metadata: dict):
     """Worker 1: Extracts SPO triples and embeds them."""
     try:
-        embedded_claims = run_extraction(text)
+        embedded_claims = run_extraction(text, system_id)
         return embedded_claims 
     except Exception as exc:
         # F5.3 Compliance: Route terminal failures to Dead Letter Queue

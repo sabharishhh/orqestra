@@ -109,6 +109,7 @@ class Contradiction(Base):
     cosine_similarity = Column(Float, nullable=False)
     nli_score = Column(Float, nullable=False)
     severity = Column(String(50), nullable=False)
+    cost_usd = Column(Integer, default=0)
     status = Column(String(50), default='open')
     detected_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     

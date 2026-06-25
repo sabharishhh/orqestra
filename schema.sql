@@ -290,3 +290,12 @@ CREATE INDEX IF NOT EXISTS idx_obg_org                  ON entity_belief_states(
 CREATE INDEX IF NOT EXISTS idx_contradictions_org       ON contradictions(org_id);
 CREATE INDEX IF NOT EXISTS idx_induction_org            ON induction_candidates(org_id);
 CREATE INDEX IF NOT EXISTS idx_coherence_org            ON coherence_scores(org_id);
+
+-- =====================================================
+-- SPRINT 3.1: cost_usd column on contradictions
+-- Cost is now computed by services/severity_scorer.py at detection
+-- time and persisted, so api/routers/roi.py can sum real values
+-- instead of multiplying severity by hardcoded $1200/$150.
+-- =====================================================
+ALTER TABLE contradictions ADD COLUMN IF NOT EXISTS cost_usd INTEGER DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_contradictions_cost ON contradictions(cost_usd);
