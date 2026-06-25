@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from core.database import get_db
 from models.database import Contradiction, Claim, System
+from services.lca_computer import compute_lca
 
 router = APIRouter()
 
@@ -25,16 +26,19 @@ def get_active_contradictions(status: str = "open", limit: int = 50, db: Session
         sys_a = db.query(System).filter(System.id == claim_a.system_id).first()
         sys_b = db.query(System).filter(System.id == claim_b.system_id).first()
         
+        # Dynamically calculate the lineage data for the feed tags
+        lca_data = compute_lca(db, c.claim_a_id, c.claim_b_id)
+        
         results.append({
             "id": c.id,
             "severity": c.severity,
             "entity_hint": claim_a.entity_hint,
             "nli_score": c.nli_score,
             "detected_at": c.detected_at,
-            "lca_claim_id": getattr(c, 'lca_claim_id', None),
-            "fork_distance_a": getattr(c, 'fork_distance_a', None),
-            "fork_distance_b": getattr(c, 'fork_distance_b', None),
-            "has_shared_ancestor": getattr(c, 'lca_claim_id', None) is not None,
+            "lca_claim_id": lca_data["lca_claim_id"],
+            "fork_distance_a": lca_data["fork_distance_a"],
+            "fork_distance_b": lca_data["fork_distance_b"],
+            "has_shared_ancestor": lca_data["has_shared_ancestor"],
             "system_a": {
                 "name": sys_a.name if sys_a else "Unknown",
                 "claim": f"{claim_a.subject} {claim_a.predicate} {claim_a.object}"
@@ -60,11 +64,14 @@ def get_contradiction_lineage(contradiction_id: str, db: Session = Depends(get_d
     sys_a = db.query(System).filter(System.id == claim_a.system_id).first()
     sys_b = db.query(System).filter(System.id == claim_b.system_id).first()
 
+    # Process the exact tree distance between the two claims
+    lca_data = compute_lca(db, contra.claim_a_id, contra.claim_b_id)
+
     # Build ReactFlow Graph JSON
     return {
-        "has_shared_ancestor": getattr(contra, 'lca_claim_id', None) is not None,
-        "fork_distance_a": getattr(contra, 'fork_distance_a', 1),
-        "fork_distance_b": getattr(contra, 'fork_distance_b', 1),
+        "has_shared_ancestor": lca_data["has_shared_ancestor"],
+        "fork_distance_a": lca_data["fork_distance_a"],
+        "fork_distance_b": lca_data["fork_distance_b"],
         "nodes": [
             { "id": "root", "type": "agentNode", "position": { "x": 300, "y": 50 }, "data": { "agentName": "System Core" } },
             { "id": "anc_a", "type": "claimNode", "position": { "x": 50, "y": 200 }, "data": { "entityHint": claim_a.entity_hint, "claimText": f"{claim_a.subject} {claim_a.predicate} {claim_a.object}" } },
