@@ -245,3 +245,48 @@ CREATE TABLE IF NOT EXISTS pii_allowlist (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pii_allowlist ON pii_allowlist(org_id);
+
+-- =====================================================
+-- SPRINT 1.3: org_id FK ROLLOUT
+-- =====================================================
+-- Tenant-scope all existing operational tables.
+-- Backfill rows under a 'demo-fitness' organization before
+-- adding the NOT NULL constraint so live data isn't disrupted.
+
+-- Ensure demo org exists (idempotent)
+INSERT INTO organizations (name, slug, vertical_preset, description)
+VALUES ('Demo Fitness', 'demo-fitness', 'consumer', 'Default organization seeded for the original fitness demo')
+ON CONFLICT (slug) DO NOTHING;
+
+-- Add columns nullable first, backfill, then enforce NOT NULL
+ALTER TABLE systems              ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE claims               ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE entity_belief_states ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE contradictions       ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE induction_candidates ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE coherence_scores     ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES organizations(id) ON DELETE CASCADE;
+
+-- Backfill all existing rows to the demo org
+UPDATE systems              SET org_id = (SELECT id FROM organizations WHERE slug = 'demo-fitness') WHERE org_id IS NULL;
+UPDATE claims               SET org_id = (SELECT id FROM organizations WHERE slug = 'demo-fitness') WHERE org_id IS NULL;
+UPDATE entity_belief_states SET org_id = (SELECT id FROM organizations WHERE slug = 'demo-fitness') WHERE org_id IS NULL;
+UPDATE contradictions       SET org_id = (SELECT id FROM organizations WHERE slug = 'demo-fitness') WHERE org_id IS NULL;
+UPDATE induction_candidates SET org_id = (SELECT id FROM organizations WHERE slug = 'demo-fitness') WHERE org_id IS NULL;
+UPDATE coherence_scores     SET org_id = (SELECT id FROM organizations WHERE slug = 'demo-fitness') WHERE org_id IS NULL;
+
+-- Lock it in: all future inserts MUST provide org_id
+ALTER TABLE systems              ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE claims               ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE entity_belief_states ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE contradictions       ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE induction_candidates ALTER COLUMN org_id SET NOT NULL;
+ALTER TABLE coherence_scores     ALTER COLUMN org_id SET NOT NULL;
+
+-- Indexes for fast tenant-scoped queries
+CREATE INDEX IF NOT EXISTS idx_systems_org              ON systems(org_id);
+CREATE INDEX IF NOT EXISTS idx_claims_org               ON claims(org_id);
+CREATE INDEX IF NOT EXISTS idx_claims_org_entity        ON claims(org_id, entity_hint);
+CREATE INDEX IF NOT EXISTS idx_obg_org                  ON entity_belief_states(org_id);
+CREATE INDEX IF NOT EXISTS idx_contradictions_org       ON contradictions(org_id);
+CREATE INDEX IF NOT EXISTS idx_induction_org            ON induction_candidates(org_id);
+CREATE INDEX IF NOT EXISTS idx_coherence_org            ON coherence_scores(org_id);

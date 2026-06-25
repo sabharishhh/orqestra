@@ -25,5 +25,8 @@ export const fetchPendingResolutions = async () => {
     return res.json();
 };
 
-export const fetchLineage = (contradictionId) =>
-    fetch(`${BASE}/graph/lineage/${contradictionId}`).then(r => r.json());
+export const fetchLineage = async (id) => {
+    const response = await fetch(`${API_BASE}/contradictions/${id}/lineage`);
+    if (!response.ok) throw new Error('Lineage data not found');
+    return response.json();
+};

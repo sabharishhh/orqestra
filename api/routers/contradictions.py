@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from core.database import get_db
@@ -31,10 +31,10 @@ def get_active_contradictions(status: str = "open", limit: int = 50, db: Session
             "entity_hint": claim_a.entity_hint,
             "nli_score": c.nli_score,
             "detected_at": c.detected_at,
-            "lca_claim_id": str(c.lca_claim_id) if c.lca_claim_id else None,
-            "fork_distance_a": c.fork_distance_a,
-            "fork_distance_b": c.fork_distance_b,
-            "has_shared_ancestor": c.lca_claim_id is not None,
+            "lca_claim_id": getattr(c, 'lca_claim_id', None),
+            "fork_distance_a": getattr(c, 'fork_distance_a', None),
+            "fork_distance_b": getattr(c, 'fork_distance_b', None),
+            "has_shared_ancestor": getattr(c, 'lca_claim_id', None) is not None,
             "system_a": {
                 "name": sys_a.name if sys_a else "Unknown",
                 "claim": f"{claim_a.subject} {claim_a.predicate} {claim_a.object}"
@@ -46,3 +46,37 @@ def get_active_contradictions(status: str = "open", limit: int = 50, db: Session
         })
         
     return results
+
+@router.get("/{contradiction_id}/lineage")
+def get_contradiction_lineage(contradiction_id: str, db: Session = Depends(get_db)):
+    """Returns the ReactFlow node schema for a given contradiction."""
+    contra = db.query(Contradiction).filter(Contradiction.id == contradiction_id).first()
+    if not contra:
+        raise HTTPException(status_code=404, detail="Contradiction not found")
+        
+    claim_a = db.query(Claim).filter(Claim.id == contra.claim_a_id).first()
+    claim_b = db.query(Claim).filter(Claim.id == contra.claim_b_id).first()
+    
+    sys_a = db.query(System).filter(System.id == claim_a.system_id).first()
+    sys_b = db.query(System).filter(System.id == claim_b.system_id).first()
+
+    # Build ReactFlow Graph JSON
+    return {
+        "has_shared_ancestor": getattr(contra, 'lca_claim_id', None) is not None,
+        "fork_distance_a": getattr(contra, 'fork_distance_a', 1),
+        "fork_distance_b": getattr(contra, 'fork_distance_b', 1),
+        "nodes": [
+            { "id": "root", "type": "agentNode", "position": { "x": 300, "y": 50 }, "data": { "agentName": "System Core" } },
+            { "id": "anc_a", "type": "claimNode", "position": { "x": 50, "y": 200 }, "data": { "entityHint": claim_a.entity_hint, "claimText": f"{claim_a.subject} {claim_a.predicate} {claim_a.object}" } },
+            { "id": "anc_b", "type": "claimNode", "position": { "x": 450, "y": 200 }, "data": { "entityHint": claim_b.entity_hint, "claimText": f"{claim_b.subject} {claim_b.predicate} {claim_b.object}" } },
+            { "id": "agent_a", "type": "agentNode", "position": { "x": 100, "y": 400 }, "data": { "agentName": sys_a.name } },
+            { "id": "agent_b", "type": "agentNode", "position": { "x": 500, "y": 400 }, "data": { "agentName": sys_b.name } },
+        ],
+        "edges": [
+            { "id": "e1", "source": "root", "target": "anc_a", "animated": True, "style": { "stroke": "#475569", "strokeWidth": 2 } },
+            { "id": "e2", "source": "root", "target": "anc_b", "animated": True, "style": { "stroke": "#475569", "strokeWidth": 2 } },
+            { "id": "e3", "source": "anc_a", "target": "agent_a", "markerEnd": { "type": "arrowclosed" }, "style": { "stroke": "#3B82F6", "strokeWidth": 2 } },
+            { "id": "e4", "source": "anc_b", "target": "agent_b", "markerEnd": { "type": "arrowclosed" }, "style": { "stroke": "#3B82F6", "strokeWidth": 2 } },
+            { "id": "e5", "source": "agent_a", "target": "agent_b", "animated": True, "style": { "stroke": "#EF4444", "strokeWidth": 3, "strokeDasharray": "5,5" }, "label": "CONTRADICTION", "labelStyle": { "fill": "#EF4444", "fontWeight": 700 }, "labelBgStyle": { "fill": "#0B1120" } }
+        ]
+    }

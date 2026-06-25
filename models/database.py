@@ -12,6 +12,8 @@ class System(Base):
     __tablename__ = 'systems'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)  # ← ADD
+    name = Column(String(255), unique=True, nullable=False)
     name = Column(String(255), unique=True, nullable=False)
     provider = Column(String(50), default="openai")
     description = Column(Text)
@@ -32,6 +34,8 @@ class InductionCandidate(Base):
     __tablename__ = 'induction_candidates'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+
     suggested_name = Column(String(255), nullable=False)
     aliases = Column(JSONB, default=list)
     suggested_type = Column(String(50), default="general")
@@ -46,6 +50,7 @@ class Claim(Base):
     __tablename__ = 'claims'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)  # ← ADD
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'))
     entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
     # --- PHASE 3 FIX: Structural Graph Integrity ---
@@ -70,6 +75,7 @@ class EntityBeliefState(Base):
     __tablename__ = 'entity_belief_states'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'))
     entity_name = Column(String(255), nullable=False)
     centroid_embedding = Column(Vector(1536))
@@ -89,6 +95,8 @@ class Contradiction(Base):
     __tablename__ = 'contradictions'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)  # ← ADD
+
     claim_a_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
     claim_b_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='CASCADE'))
     entity_id = Column(UUID(as_uuid=True), ForeignKey('entities.id', ondelete='SET NULL'), nullable=True)
@@ -123,6 +131,8 @@ class CoherenceScore(Base):
     __tablename__ = 'coherence_scores'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+
     system_id = Column(UUID(as_uuid=True), ForeignKey('systems.id', ondelete='CASCADE'), unique=True)
     score = Column(Float, default=1.0)
     active_contradictions = Column(Integer, default=0)
@@ -145,3 +155,104 @@ class ContrastiveFeedback(Base):
     is_hard_negative = Column(Boolean, default=False)
     feedback_source = Column(String(50), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+# =====================================================
+# MULTI-TENANT CONFIG LAYER (Sprint 1.2)
+# =====================================================
+
+class Organization(Base):
+    """Top-level tenant boundary. All claims, systems, configs scope here."""
+    __tablename__ = 'organizations'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), unique=True, nullable=False)
+    slug = Column(String(100), unique=True, nullable=False)   # e.g. 'demo-fitness'
+    vertical_preset = Column(String(50), default="general")   # 'general' | 'consumer' | 'clinical' | 'finance' | 'legal' | 'policy'
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class CanonicalEntity(Base):
+    """Per-org closed vocabulary. Replaces hardcoded CANONICAL_ENTITIES."""
+    __tablename__ = 'canonical_entities'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+    canonical_name = Column(String(255), nullable=False)
+    description = Column(Text)                                # human-readable; injected into extraction prompt
+    category = Column(String(50), default="general", nullable=False)  # routes to category_thresholds
+    importance = Column(Float, default=0.5)
+    severity_tier = Column(String(50), default="high")        # 'critical' | 'high' | 'medium' | 'low'
+    cost_critical_usd = Column(Integer, default=5000)
+    cost_high_usd = Column(Integer, default=1000)
+    source = Column(String(50), default="manual")             # 'preset' | 'manual' | 'induced'
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint('org_id', 'canonical_name', name='_org_canonical_uc'),)
+
+
+class EntityAlias(Base):
+    """Flat alias→canonical lookup. One row per (canonical, alias) pair."""
+    __tablename__ = 'entity_aliases'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    canonical_entity_id = Column(UUID(as_uuid=True), ForeignKey('canonical_entities.id', ondelete='CASCADE'), nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)  # denorm for fast WHERE
+    alias = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint('org_id', 'alias', name='_org_alias_uc'),)
+
+
+class DetectionConfig(Base):
+    """Per-org tuning of all magic numbers in the funnel. 1:1 with Organization."""
+    __tablename__ = 'detection_config'
+
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), primary_key=True)
+    # Funnel tuning
+    bootstrap_min_samples = Column(Integer, default=3)
+    high_variance_threshold = Column(Float, default=0.40)
+    semantic_match_threshold = Column(Float, default=0.55)
+    # Auto-induction
+    cluster_min_size = Column(Integer, default=5)
+    cluster_merge_threshold = Column(Float, default=0.20)
+    induction_lookback_days = Column(Integer, default=7)
+    induction_cluster_threshold = Column(Float, default=0.35)
+    # Suppression / dedup
+    regression_dedup_days = Column(Integer, default=7)
+    semantic_suppression_distance = Column(Float, default=0.05)
+    # Scoring
+    coherence_window_days = Column(Integer, default=30)
+    recency_decay_lambda = Column(Float, default=0.05)
+    nli_confidence_floor = Column(Float, default=0.70)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class CategoryThreshold(Base):
+    """Per-org per-category cosine thresholds. Routes via CanonicalEntity.category."""
+    __tablename__ = 'category_thresholds'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+    category = Column(String(50), nullable=False)
+    level_0_cosine = Column(Float, nullable=False)            # OBG centroid divergence threshold
+    level_3_cosine = Column(Float, nullable=False)            # HNSW neighbor distance threshold
+    nli_floor = Column(Float, nullable=True)                  # falls back to DetectionConfig.nli_confidence_floor
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint('org_id', 'category', name='_org_category_uc'),)
+
+
+class PiiAllowlistToken(Base):
+    """Per-org PII scrubber allowlist (e.g. clinical: mg/ml/egfr; finance: bps/aum)."""
+    __tablename__ = 'pii_allowlist'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+    token = Column(String(100), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint('org_id', 'token', name='_org_token_uc'),)

@@ -139,7 +139,7 @@ export default function ContradictionFeed() {
                             {/* Causal Lineage Tree Dropdown */}
                             {isLineageOpen && (
                                 <div className="mt-4 pt-4 border-t border-slate-800/80 animate-in fade-in slide-in-from-top-2">
-                                    <ContradictionLineageTree contradictionId={c.id} />
+                                    <ContradictionLineageTree conflict={c} />
                                 </div>
                             )}
                         </div>

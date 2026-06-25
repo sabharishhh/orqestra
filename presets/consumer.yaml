@@ -1,0 +1,28 @@
+# Stub for Sprint 1.4 CLI testing. Full vocabulary lands in Sprint 1.5.
+preset_name: consumer
+description: Consumer apps, fitness, wellness — full vocabulary pending
+
+detection_config:
+  bootstrap_min_samples: 3
+  nli_confidence_floor: 0.70
+  regression_dedup_days: 7
+  coherence_window_days: 30
+
+category_thresholds:
+  - category: consumer
+    level_0_cosine: 0.40
+    level_3_cosine: 0.45
+  - category: general
+    level_0_cosine: 0.35
+    level_3_cosine: 0.40
+
+canonical_entities:
+  - name: stub_entity
+    aliases: [test_alias]
+    category: general
+    severity_tier: low
+    importance: 0.1
+
+pii_allowlist:
+  - mg
+  - kg

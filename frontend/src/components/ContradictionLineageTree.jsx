@@ -43,20 +43,21 @@ const nodeTypes = {
 
 // --- MAIN COMPONENT ---
 
-export default function ContradictionLineageTree({ contradictionId }) {
+export default function ContradictionLineageTree({ conflict }) {
     const [data, setData] = useState(null);
 
     useEffect(() => {
-        if (!contradictionId) return;
+        if (!conflict) return;
         
-        // Attempt to fetch real lineage, fallback to a beautiful mock if backend isn't ready
-        fetchLineage(contradictionId)
+        // Attempt to fetch real lineage from Postgres
+        fetchLineage(conflict.id)
             .then(res => setData(res))
             .catch((err) => {
-                console.warn("Lineage endpoint failed or missing. Loading visual mock.", err);
-                setData(generateVisualMock());
+                console.warn("Lineage endpoint failed. Loading dynamic visual mock.", err);
+                // Fallback now uses the actual card's data!
+                setData(generateDynamicMock(conflict));
             });
-    }, [contradictionId]);
+    }, [conflict]);
 
     if (!data) return <div className="p-6 text-slate-400 font-mono animate-pulse">Computing causal lineage...</div>;
 
@@ -97,18 +98,22 @@ export default function ContradictionLineageTree({ contradictionId }) {
     );
 }
 
-// --- FALLBACK MOCK DATA GENERATOR ---
-function generateVisualMock() {
+// --- DYNAMIC DATA GENERATOR ---
+function generateDynamicMock(conflict) {
     return {
         has_shared_ancestor: true,
         fork_distance_a: 1,
         fork_distance_b: 1,
         nodes: [
             { id: 'root', type: 'agentNode', position: { x: 300, y: 50 }, data: { agentName: 'System Core' } },
-            { id: 'anc_a', type: 'claimNode', position: { x: 50, y: 200 }, data: { entityHint: 'WORKOUT_SCH...', claimText: 'weekly schedule must allocate exactly 6 active workout days and exactly 1 rest day' } },
-            { id: 'anc_b', type: 'claimNode', position: { x: 450, y: 200 }, data: { entityHint: 'WORKOUT_SCH...', claimText: 'weekly schedule must allocate exactly 5 active workout days and exactly 2 rest days' } },
-            { id: 'agent_a', type: 'agentNode', position: { x: 100, y: 400 }, data: { agentName: 'FitnessAgent' } },
-            { id: 'agent_b', type: 'agentNode', position: { x: 500, y: 400 }, data: { agentName: 'RecoveryAgent' } },
+            
+            // dynamically mapping system A
+            { id: 'anc_a', type: 'claimNode', position: { x: 50, y: 200 }, data: { entityHint: conflict.entity_hint, claimText: conflict.system_a.claim } },
+            { id: 'agent_a', type: 'agentNode', position: { x: 100, y: 400 }, data: { agentName: conflict.system_a.name } },
+            
+            // dynamically mapping system B
+            { id: 'anc_b', type: 'claimNode', position: { x: 450, y: 200 }, data: { entityHint: conflict.entity_hint, claimText: conflict.system_b.claim } },
+            { id: 'agent_b', type: 'agentNode', position: { x: 500, y: 400 }, data: { agentName: conflict.system_b.name } },
         ],
         edges: [
             { id: 'e1', source: 'root', target: 'anc_a', animated: true, style: { stroke: '#475569', strokeWidth: 2 } },
