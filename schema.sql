@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS claims (
     parent_claim_id UUID REFERENCES claims(id) ON DELETE SET NULL,
     content_hash VARCHAR(64),
     logical_clock INTEGER DEFAULT 0,
+    event_type VARCHAR(50) NOT NULL DEFAULT 'CLAIM_EMITTED',
     subject TEXT NOT NULL,
     predicate TEXT NOT NULL,
     object TEXT NOT NULL,
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS claims (
 );
 
 CREATE INDEX ON claims (content_hash);
+CREATE INDEX IF NOT EXISTS idx_claims_event_type ON claims(event_type);
 -- F1.6 Guardrail: STRICT HNSW INDEXING (No IVFFlat)
 CREATE INDEX ON claims USING hnsw (embedding vector_cosine_ops);
 
@@ -69,6 +71,7 @@ CREATE TABLE IF NOT EXISTS entity_belief_states (
     staleness_score FLOAT DEFAULT 0.0,
     confidence FLOAT DEFAULT 0.0,
     recency_weight FLOAT DEFAULT 1.0,
+    centroid_history JSONB DEFAULT '[]'::jsonb,
     first_seen_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(system_id, entity_name)

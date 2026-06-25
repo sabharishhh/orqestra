@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from core.database import get_db
-from models.database import Contradiction, ResolutionProposal
+from models.database import Contradiction, Resolution
 
 router = APIRouter()
 

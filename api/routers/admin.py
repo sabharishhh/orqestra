@@ -6,7 +6,7 @@ from core.database import get_db
 router = APIRouter()
 
 # Simple allowlist to prevent arbitrary SQL injection
-ALLOWED_TABLES = ["systems", "entities", "claims", "contradictions", "resolution_proposals", "coherence_scores", "contrastive_feedback"]
+ALLOWED_TABLES = ["systems", "entities", "claims", "contradictions", "resolutions", "coherence_scores", "contrastive_feedback"]
 
 @router.get("/table/{table_name}")
 def get_table_data(table_name: str, db: Session = Depends(get_db)):

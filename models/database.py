@@ -52,6 +52,8 @@ class Claim(Base):
     parent_claim_id = Column(UUID(as_uuid=True), ForeignKey('claims.id', ondelete='SET NULL'), nullable=True) 
     content_hash = Column(String(64), index=True) 
     logical_clock = Column(Integer, default=0)
+
+    event_type = Column(String(50), default="CLAIM_EMITTED")
     
     subject = Column(Text, nullable=False)
     predicate = Column(Text, nullable=False)

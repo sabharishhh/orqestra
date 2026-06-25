@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import logging
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
-from models.database import Contradiction, Claim, ResolutionProposal, System
+from models.database import Contradiction, Claim, Resolution, System
 
 load_dotenv()
 
@@ -22,7 +22,7 @@ def send_slack_alert(resolution_id: str):
 
     db: Session = SessionLocal()
     try:
-        res = db.query(ResolutionProposal).filter_by(id=resolution_id).first()
+        res = db.query(Resolution).filter_by(id=resolution_id).first()
         if not res: return
         
         contra = db.query(Contradiction).filter_by(id=res.contradiction_id).first()

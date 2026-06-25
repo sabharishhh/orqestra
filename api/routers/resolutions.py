@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
 from core.database import get_db
-from models.database import ResolutionProposal
+from models.database import Resolution
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -12,11 +12,11 @@ class FeedbackRequest(BaseModel):
 
 @router.get("/pending")
 def get_pending_resolutions(db: Session = Depends(get_db)):
-    return db.query(ResolutionProposal).filter(ResolutionProposal.status == "pending").limit(5).all()
+    return db.query(Resolution).filter(Resolution.status == "pending").limit(5).all()
 
 @router.get("/{contradiction_id}")
 def get_resolution_for_contradiction(contradiction_id: UUID, db: Session = Depends(get_db)):
-    resolution = db.query(ResolutionProposal).filter(ResolutionProposal.contradiction_id == contradiction_id).first()
+    resolution = db.query(Resolution).filter(Resolution.contradiction_id == contradiction_id).first()
     
     if not resolution:
         raise HTTPException(status_code=404, detail="Resolution not yet generated or contradiction ID invalid.")
@@ -35,7 +35,7 @@ def get_resolution_for_contradiction(contradiction_id: UUID, db: Session = Depen
 
 @router.post("/{id}/feedback")
 def submit_feedback(id: str, payload: FeedbackRequest, db: Session = Depends(get_db)):
-    res = db.query(ResolutionProposal).filter_by(id=id).first()
+    res = db.query(Resolution).filter_by(id=id).first()
     if not res:
         raise HTTPException(status_code=404, detail="Resolution not found.")
         

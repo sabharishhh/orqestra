@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Router Imports
-from api.routers import systems, samples, contradictions, entities, graph, resolutions, roi
+from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -24,12 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Health Check
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "operational", "engine": "Orqestra v3.0"}
 
 # Mount Routers
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(systems.router, prefix="/systems", tags=["Systems"])
 app.include_router(samples.router, prefix="/systems", tags=["Ingestion"])
 app.include_router(contradictions.router, prefix="/contradictions", tags=["Contradictions"])

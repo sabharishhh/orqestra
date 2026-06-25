@@ -133,8 +133,8 @@ bouncer = LocalBouncerContainer(model_name="MoritzLaurer/DeBERTa-v3-large-mnli-f
 # ==========================================
 def calculate_severity(entity: str, score: float) -> str:
     normalized = entity.lower().strip()
-    critical_domains = ["compliance", "legal", "pricing", "clinical"]
-    high_domains = ["policy", "product", "consumer", "weekly schedule", "monthly food selection", "workout routine exercises"]
+    critical_domains = ["compliance", "legal", "pricing", "clinical", "activity_limit"]
+    high_domains = ["policy", "product", "consumer", "workout_routine",      "workout_schedule", "meal_plan", "sleep_target", "nutrition_macros", "food_budget_policy", "fitness_budget_policy",]
     
     if score >= 0.85:
         if normalized in critical_domains: return "critical"
