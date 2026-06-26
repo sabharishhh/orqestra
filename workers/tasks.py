@@ -21,7 +21,16 @@ def process_sample_task(self, system_id: str, text: str, metadata: dict = None):
     logger.info(f"Initiating pipeline for System [{system_id}]")
 
     # F5.1 Guardrail: PII Scrubbing happens instantly before any downstream logic
-    safe_text = scrub_pii(text)
+    from core.database import SessionLocal
+    from models.database import System
+    db = SessionLocal()
+    try:
+        sys_row = db.query(System.org_id).filter(System.id == system_id).first()
+        org_id_for_scrub = str(sys_row.org_id) if sys_row and sys_row.org_id else None
+    finally:
+        db.close()
+
+    safe_text = scrub_pii(text, org_id=org_id_for_scrub)
 
     # F5.2 Guardrail: Celery Chain execution
     workflow = chain(

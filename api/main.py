@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Router Imports
-from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi
+from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi, canon
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -79,5 +79,6 @@ app.include_router(resolutions.router, prefix="/resolutions", tags=["Resolutions
 app.include_router(entities.router, prefix="/entities", tags=["OBG Entities"])
 app.include_router(graph.router, prefix="/graph", tags=["SCCG Visualizer"])
 app.include_router(roi.router, prefix="/roi", tags=["Financial ROI"])
+app.include_router(canon.router, prefix="/canon", tags=["Canon"])
 
 logger.info("Orqestra API Core Initialized. Standing by for Swarm Telemetry.")

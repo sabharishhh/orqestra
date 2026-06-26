@@ -60,3 +60,4 @@ for slug, entity, conf, desc in scenarios:
     r = calculate_severity_and_cost(org_id, entity, nli_confidence=conf)
     print(f'{slug:18s} {entity:24s} {r.severity:10s} \${r.cost_usd:>10,}   {desc}')
 "
+

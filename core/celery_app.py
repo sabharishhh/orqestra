@@ -15,7 +15,8 @@ celery_app = Celery(
         "workers.tasks", 
         "workers.feedback_collector",
         "workers.auto_induction",
-        "workers.coherence_scorer"
+        "workers.coherence_scorer",
+        "workers.canary_injector",
     ]
 )
 

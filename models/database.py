@@ -12,8 +12,7 @@ class System(Base):
     __tablename__ = 'systems'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)  # ← ADD
-    name = Column(String(255), unique=True, nullable=False)
+    org_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
     name = Column(String(255), unique=True, nullable=False)
     provider = Column(String(50), default="openai")
     description = Column(Text)

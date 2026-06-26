@@ -1,16 +1,5 @@
-"""
-PII scrubbing with per-organization allowlist support.
-
-Each org defines its own clinical/business vocabulary in the
-`pii_allowlist` table (seeded from `presets/<vertical>.yaml`). The
-scrubber preserves overlapping terms (e.g., a clinical org keeps
-"EGFR" even though spaCy flags it as ORG) while redacting PERSON,
-ORG, and GPE entities outside the allowlist, plus SSN and phone
-number patterns via regex.
-"""
 import re
 import logging
-import subprocess
 from typing import Optional, Union, Set
 from uuid import UUID
 
@@ -18,6 +7,7 @@ try:
     import spacy
     nlp = spacy.load("en_core_web_sm")
 except (ImportError, OSError):
+    import subprocess
     subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
     import spacy
     nlp = spacy.load("en_core_web_sm")
@@ -31,19 +21,15 @@ from services.config_loader import _redis, CACHE_TTL_SECONDS
 logger = logging.getLogger(__name__)
 
 
-# Built-in fallback. Applied when an org has no pii_allowlist rows,
-# or when the scrubber is called without an org_id (legacy pipeline
-# entry points that haven't been threaded through yet). Mirrors the
-# pre-multitenant constant so behavior is unchanged in that path.
+# =====================================================
+# Fallback allowlist for orgs with no pii_allowlist rows.
+# Matches the legacy hardcoded set so behavior is unchanged
+# when the table is empty. Real customers override via seed.
+# =====================================================
 DEFAULT_ALLOWLIST: Set[str] = {
     "mg", "ml", "kg", "egfr", "cpt", "icd",
     "dosage", "blood pressure", "bpm", "dose",
 }
-
-# Compiled once at module load
-_SSN_RE = re.compile(r'\b\d{3}-\d{2}-\d{4}\b')
-_PHONE_RE = re.compile(r'\b\d{3}-\d{3}-\d{4}\b')
-_REDACTED_ENT_LABELS = {"PERSON", "ORG", "GPE"}
 
 
 def _allowlist_cache_key(org_id: str) -> str:
@@ -59,7 +45,7 @@ def _load_allowlist(org_id: str, db: Optional[Session] = None) -> Set[str]:
     try:
         cached = _redis.get(cache_key)
         if cached:
-            return set(cached.split("|"))
+            return set(cached.split("|")) if cached else DEFAULT_ALLOWLIST
     except Exception as e:
         logger.warning(f"Redis read failed for {cache_key}: {e}")
 
@@ -74,7 +60,7 @@ def _load_allowlist(org_id: str, db: Optional[Session] = None) -> Set[str]:
         )
         tokens = {r.token.lower().strip() for r in rows if r.token}
         if not tokens:
-            logger.info(f"No pii_allowlist rows for org {org_id}. Using built-in defaults.")
+            logger.info(f"No pii_allowlist for org {org_id}. Using built-in defaults.")
             tokens = DEFAULT_ALLOWLIST
 
         try:
@@ -89,7 +75,7 @@ def _load_allowlist(org_id: str, db: Optional[Session] = None) -> Set[str]:
 
 
 def invalidate_allowlist_cache(org_id: Union[str, UUID]) -> None:
-    """Drop cached allowlist after admin edits PII tokens (Sprint 5 admin UI)."""
+    """Drop cached allowlist after admin edits PII tokens."""
     try:
         _redis.delete(_allowlist_cache_key(str(org_id)))
         logger.info(f"Invalidated PII allowlist cache for org {org_id}")
@@ -99,28 +85,37 @@ def invalidate_allowlist_cache(org_id: Union[str, UUID]) -> None:
 
 def scrub_pii(text: str, org_id: Optional[Union[str, UUID]] = None) -> str:
     """
-    Redact PII from a string using NER + regex, preserving terms in the
-    org's allowlist.
+    F3.4 Compliance: PII scrubber with per-org allowlist and NER.
 
-    Args:
-        org_id: tenant scope. When None, applies the built-in DEFAULT_ALLOWLIST.
-                Pre-multitenant callers (e.g. workers/tasks.process_sample_task)
-                may invoke without org_id; Sprint 5+ callers should always pass it.
+    Sprint 3.6c: the allowlist is now per-org. Clinical customers see
+    medical terms preserved; consumer orgs see only consumer-relevant
+    tokens spared. When org_id is None, falls back to the demo-fitness
+    org via the shim — pre-multitenant callers continue to work.
     """
-    allowlist = _load_allowlist(str(org_id)) if org_id is not None else DEFAULT_ALLOWLIST
+    if org_id is None:
+        # Legacy single-tenant fallback. Sprint 3.6c+ callers should pass org_id.
+        from services.config_loader import get_org_id_by_slug
+        org_id = get_org_id_by_slug("demo-fitness")
+        if org_id is None:
+            allowlist = DEFAULT_ALLOWLIST
+        else:
+            allowlist = _load_allowlist(str(org_id))
+    else:
+        allowlist = _load_allowlist(str(org_id))
 
-    # Regex redactions first — these don't interact with NER
-    scrubbed = _SSN_RE.sub('[REDACTED_SSN]', text)
-    scrubbed = _PHONE_RE.sub('[REDACTED_PHONE]', scrubbed)
+    doc = nlp(text)
+    scrubbed_text = text
 
-    # NER pass — preserve entities overlapping with the allowlist
-    doc = nlp(scrubbed)
+    # Simple regex for SSN and Phone
+    scrubbed_text = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED_SSN]', scrubbed_text)
+    scrubbed_text = re.sub(r'\b\d{3}-\d{3}-\d{4}\b', '[REDACTED_PHONE]', scrubbed_text)
+
     for ent in doc.ents:
-        if ent.label_ not in _REDACTED_ENT_LABELS:
-            continue
-        ent_lower = ent.text.lower()
-        if any(term in ent_lower for term in allowlist):
-            continue
-        scrubbed = scrubbed.replace(ent.text, f"[REDACTED_{ent.label_}]")
+        if ent.label_ in ["PERSON", "ORG", "GPE"]:
+            # Preserve entities that overlap with the org's allowlist
+            # (e.g. clinical orgs keep "EGFR" intact even though spaCy
+            # sometimes flags it as ORG).
+            if not any(term in ent.text.lower() for term in allowlist):
+                scrubbed_text = scrubbed_text.replace(ent.text, f"[REDACTED_{ent.label_}]")
 
-    return scrubbed
+    return scrubbed_text

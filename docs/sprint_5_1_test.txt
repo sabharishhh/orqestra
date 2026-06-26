@@ -1,0 +1,34 @@
+CANON READ TEST
+
+#orq_key generation:
+
+docker compose exec api python -c "
+import secrets, hashlib
+from sqlalchemy.orm import Session
+from core.database import SessionLocal
+from models.database import System
+db: Session = SessionLocal()
+sys_row = db.query(System).filter_by(name='FitnessAgent').first()
+raw = f'oq-{secrets.token_hex(32)}'
+sys_row.api_key_hash = hashlib.sha256(raw.encode()).hexdigest()
+db.commit()
+print(raw)
+"
+
+export ORQ_KEY="oq_"
+
+# Test 2: alias resolution
+curl -s -H "Authorization: Bearer $ORQ_KEY" \
+    "http://localhost:8000/canon/resolve?entity=weekly_schedule" | python -m json.tool
+
+echo "---"
+
+# Test 3: full org vocab
+curl -s -H "Authorization: Bearer $ORQ_KEY" \
+    "http://localhost:8000/canon/list" | python -m json.tool
+
+echo "---"
+
+# Test 5: tenant isolation — should return 'no data' not the clinical org's data
+curl -s -H "Authorization: Bearer $ORQ_KEY" \
+    "http://localhost:8000/canon/resolve?entity=contraindication" | python -m json.tool
