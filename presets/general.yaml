@@ -34,6 +34,7 @@ detection_config:
   coherence_window_days: 30
   recency_decay_lambda: 0.05
   nli_confidence_floor: 0.70
+  blast_radius_decay: 0.50
 
 category_thresholds:
   - category: general

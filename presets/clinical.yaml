@@ -38,6 +38,7 @@ detection_config:
   coherence_window_days: 30
   recency_decay_lambda: 0.05
   nli_confidence_floor: 0.60             # lower bar than consumer (0.70)
+  blast_radius_decay: 0.70
 
 category_thresholds:
   - category: clinical

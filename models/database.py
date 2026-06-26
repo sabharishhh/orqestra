@@ -230,6 +230,7 @@ class DetectionConfig(Base):
     coherence_window_days = Column(Integer, default=30)
     recency_decay_lambda = Column(Float, default=0.05)
     nli_confidence_floor = Column(Float, default=0.70)
+    blast_radius_decay = Column(Float, default=0.5)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 

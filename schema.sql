@@ -303,3 +303,6 @@ CREATE INDEX IF NOT EXISTS idx_contradictions_cost ON contradictions(cost_usd);
 ALTER TABLE detection_config ADD COLUMN IF NOT EXISTS induction_min_cluster_size INTEGER DEFAULT 5, ADD COLUMN IF NOT EXISTS induction_merge_threshold FLOAT DEFAULT 0.20;
 
 UPDATE detection_config SET induction_min_cluster_size = COALESCE(induction_min_cluster_size, 5), induction_merge_threshold  = COALESCE(induction_merge_threshold, 0.20);
+
+-- Sprint 5.2: blast-radius dollar report
+ALTER TABLE detection_config ADD COLUMN IF NOT EXISTS blast_radius_decay FLOAT DEFAULT 0.5;

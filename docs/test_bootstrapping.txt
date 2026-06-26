@@ -26,19 +26,19 @@ output: critical / $10000
 
 Vertical change:
 docker compose exec api python -m scripts.seed_org \
-    --name "Acme Health" --slug acme-health --preset clinical
+    --name "Demo Fitness" --slug demo-fitness --preset consumer
 
 docker compose exec api python -m scripts.seed_org \
-    --name "Acme Finance" \
-    --slug acme-finance \
-    --preset finance \
-    --description "Sprint 4 finance preset test"
+    --name "Acme Clinical" --slug acme-clinical --preset clinical
 
 docker compose exec api python -m scripts.seed_org \
-    --name "Acme Insurance" \
-    --slug acme-insurance \
-    --preset policy \
-    --description "Sprint 4 policy preset test"
+    --name "Acme Finance" --slug acme-finance --preset finance
+
+docker compose exec api python -m scripts.seed_org \
+    --name "Acme Insurance" --slug acme-insurance --preset policy
+
+docker compose exec api python -m scripts.seed_org \
+    --name "Acme General" --slug acme-general --preset general
 
 # comparison print:
 docker compose exec api python -c "

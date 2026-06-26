@@ -40,6 +40,8 @@ detection_config:
   recency_decay_lambda: 0.05                # coherence_scorer.py
   nli_confidence_floor: 0.70                # Level 4 floor — contradiction_detector.py
 
+  blast_radius_decay: 0.50
+
 # -----------------------------------------------------
 # CATEGORY THRESHOLDS — per-category Level 0 & 3 cosines
 # Mirrors services/detection_threshold.py COSINE_THRESHOLDS.
@@ -73,14 +75,13 @@ category_thresholds:
 # workers/resolution_agent.py and api/routers/roi.py.
 # -----------------------------------------------------
 canonical_entities:
-
   - name: workout_schedule
     description: Weekly training days, rest day allocation, training cadence
     category: consumer
+    importance: 0.75
     severity_tier: high
-    importance: 0.85
-    cost_high_usd: 1200                     # LTV loss (resolution_agent.py)
-    cost_critical_usd: 5000
+    cost_high_usd: 180         # was 1200 — realistic: subscription churn + support
+    cost_critical_usd: 500
     aliases:
       - weekly_schedule
       - training_days
@@ -91,10 +92,10 @@ canonical_entities:
   - name: workout_routine
     description: Specific exercises, movement selection, what to do or avoid (injury-risk surface)
     category: consumer
-    severity_tier: high                     # injury risk — squats-vs-avoid-squats
-    importance: 0.90
-    cost_high_usd: 1200
-    cost_critical_usd: 5000
+    importance: 0.85
+    severity_tier: high
+    cost_high_usd: 450         # injury risk is higher
+    cost_critical_usd: 8500
     aliases:
       - exercises
       - exercise_selection
@@ -107,10 +108,10 @@ canonical_entities:
   - name: meal_plan
     description: Food choices, meal selection, organic/processed/restricted plans
     category: consumer
-    severity_tier: high
-    importance: 0.75
-    cost_high_usd: 1200
-    cost_critical_usd: 5000
+    severity_tier: medium
+    importance: 0.70
+    cost_high_usd: 95
+    cost_critical_usd: 300
     aliases:
       - meal_plan_selection
       - meal_plan_requirements
@@ -124,8 +125,8 @@ canonical_entities:
     category: consumer
     severity_tier: medium
     importance: 0.65
-    cost_high_usd: 600
-    cost_critical_usd: 2500
+    cost_high_usd: 75
+    cost_critical_usd: 200
     aliases:
       - dietary_macros
       - macro_breakdown
@@ -138,8 +139,8 @@ canonical_entities:
     category: consumer
     severity_tier: medium
     importance: 0.55
-    cost_high_usd: 300
-    cost_critical_usd: 1500
+    cost_high_usd: 50
+    cost_critical_usd: 250
     aliases:
       - sleep_duration
       - rest_target
@@ -150,8 +151,8 @@ canonical_entities:
     category: consumer
     severity_tier: critical                 # heart rate / session duration affects health
     importance: 0.95
-    cost_high_usd: 2000
-    cost_critical_usd: 10000
+    cost_high_usd: 500
+    cost_critical_usd: 1000
     aliases:
       - session_duration
       - exercise_session_limit
@@ -161,9 +162,9 @@ canonical_entities:
     description: Food spend rules, meal cost policy, organic/budget tradeoffs
     category: consumer
     severity_tier: medium
-    importance: 0.50
-    cost_high_usd: 600
-    cost_critical_usd: 2500
+    importance: 0.45
+    cost_high_usd: 80
+    cost_critical_usd: 200
     aliases:
       - food_budgeting
       - food_selection_policy
@@ -176,8 +177,8 @@ canonical_entities:
     category: consumer
     severity_tier: medium
     importance: 0.45
-    cost_high_usd: 600
-    cost_critical_usd: 2500
+    cost_high_usd: 80
+    cost_critical_usd: 200
     aliases:
       - gym_membership
       - fitness_budget

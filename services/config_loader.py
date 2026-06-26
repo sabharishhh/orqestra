@@ -46,7 +46,7 @@ DEFAULT_CONFIG = {
     "cluster_merge_threshold": 0.20,
     "induction_lookback_days": 7,
     "induction_cluster_threshold": 0.35,
-    "induction_min_cluster_size": 5,         # NEW
+    "induction_min_cluster_size": 5,      
     "induction_merge_threshold": 0.20,  
     # Suppression / dedup
     "regression_dedup_days": 7,
@@ -55,6 +55,8 @@ DEFAULT_CONFIG = {
     "coherence_window_days": 30,
     "recency_decay_lambda": 0.05,
     "nli_confidence_floor": 0.70,
+    # Blast-radius (Sprint 5.2)
+    "blast_radius_decay": 0.5,
 }
 
 
@@ -80,6 +82,7 @@ class OrgConfig:
     coherence_window_days: int
     recency_decay_lambda: float
     nli_confidence_floor: float
+    blast_radius_decay: float
 
     @classmethod
     def from_defaults(cls, org_id: str) -> "OrgConfig":
@@ -103,6 +106,7 @@ class OrgConfig:
             coherence_window_days=row.coherence_window_days,
             recency_decay_lambda=row.recency_decay_lambda,
             nli_confidence_floor=row.nli_confidence_floor,
+            blast_radius_decay=row.blast_radius_decay,
         )
 
 
