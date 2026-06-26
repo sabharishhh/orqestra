@@ -194,31 +194,3 @@ def invalidate_alias_cache(org_id: Union[str, UUID]) -> None:
         logger.info(f"Invalidated alias map cache for org {org_id}")
     except Exception as e:
         logger.warning(f"Failed to invalidate alias cache for {org_id}: {e}")
-
-
-# =====================================================
-# Backward-compatibility shim for pre-multitenant callers.
-# Removed in Sprint 3.2 once workers pass org_id explicitly.
-# =====================================================
-def _resolve_legacy(
-    raw_hint: str,
-    embedding: Optional[list] = None,
-    db: Optional[Session] = None,
-) -> str:
-    """
-    Legacy single-tenant call site. Looks up the demo-fitness org and
-    delegates. DO NOT add new callers — pass org_id explicitly.
-    """
-    from services.config_loader import get_org_id_by_slug
-    own_session = db is None
-    if own_session:
-        db = SessionLocal()
-    try:
-        org_id = get_org_id_by_slug("demo-fitness", db)
-        if org_id is None:
-            logger.warning("Legacy resolve_entity_hint called but demo-fitness org not seeded")
-            return raw_hint.lower().strip().replace(" ", "_").replace("-", "_") if raw_hint else "general"
-        return resolve_entity_hint(org_id, raw_hint, embedding=embedding, db=db)
-    finally:
-        if own_session:
-            db.close()
