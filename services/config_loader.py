@@ -46,6 +46,8 @@ DEFAULT_CONFIG = {
     "cluster_merge_threshold": 0.20,
     "induction_lookback_days": 7,
     "induction_cluster_threshold": 0.35,
+    "induction_min_cluster_size": 5,         # NEW
+    "induction_merge_threshold": 0.20,  
     # Suppression / dedup
     "regression_dedup_days": 7,
     "semantic_suppression_distance": 0.05,
@@ -69,6 +71,8 @@ class OrgConfig:
     cluster_merge_threshold: float
     induction_lookback_days: int
     induction_cluster_threshold: float
+    induction_min_cluster_size: int
+    induction_merge_threshold: float
     # Suppression / dedup
     regression_dedup_days: int
     semantic_suppression_distance: float
@@ -92,6 +96,8 @@ class OrgConfig:
             cluster_merge_threshold=row.cluster_merge_threshold,
             induction_lookback_days=row.induction_lookback_days,
             induction_cluster_threshold=row.induction_cluster_threshold,
+            induction_min_cluster_size=row.induction_min_cluster_size,    # NEW
+            induction_merge_threshold=row.induction_merge_threshold,
             regression_dedup_days=row.regression_dedup_days,
             semantic_suppression_distance=row.semantic_suppression_distance,
             coherence_window_days=row.coherence_window_days,

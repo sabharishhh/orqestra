@@ -222,6 +222,8 @@ class DetectionConfig(Base):
     cluster_merge_threshold = Column(Float, default=0.20)
     induction_lookback_days = Column(Integer, default=7)
     induction_cluster_threshold = Column(Float, default=0.35)
+    induction_min_cluster_size  = Column(Integer, default=5)
+    induction_merge_threshold   = Column(Float, default=0.20)
     # Suppression / dedup
     regression_dedup_days = Column(Integer, default=7)
     semantic_suppression_distance = Column(Float, default=0.05)

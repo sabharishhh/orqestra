@@ -28,6 +28,8 @@ detection_config:
   cluster_merge_threshold: 0.20             # F6.1 — auto_induction.py
   induction_lookback_days: 7                # auto_induction.py
   induction_cluster_threshold: 0.35         # auto_induction.py
+  induction_min_cluster_size: 5
+  induction_merge_threshold: 0.20
 
   # Suppression / dedup
   regression_dedup_days: 7                  # REG-05 — contradiction_detector.py

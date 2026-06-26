@@ -48,6 +48,9 @@ services:
     build: .
     ports:
       - "8000:8000"
+    volumes:
+      - ./:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
@@ -63,6 +66,9 @@ services:
   worker_extraction:
     build: .
     command: celery -A core.celery_app worker -Q claim_extraction --concurrency=2 --loglevel=info
+    volumes:
+      - ./:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
@@ -78,6 +84,9 @@ services:
   worker_default:
     build: .
     command: celery -A core.celery_app worker -Q celery --concurrency=4 --loglevel=info
+    volumes:
+      - ./:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
@@ -93,6 +102,9 @@ services:
   worker_dlq:
     build: .
     command: celery -A core.celery_app worker -Q dead_letters --concurrency=1 --loglevel=info
+    volumes:
+      - ./:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
@@ -107,6 +119,9 @@ services:
   worker_beat:
     build: .
     command: celery -A core.celery_app beat --loglevel=info
+    volumes:
+      - ./:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
