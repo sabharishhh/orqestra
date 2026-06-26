@@ -23,3 +23,40 @@ print(f'{r.severity} / \${r.cost_usd}')
 "
 
 output: critical / $10000
+
+Vertical change:
+docker compose exec api python -m scripts.seed_org \
+    --name "Acme Health" --slug acme-health --preset clinical
+
+docker compose exec api python -m scripts.seed_org \
+    --name "Acme Finance" \
+    --slug acme-finance \
+    --preset finance \
+    --description "Sprint 4 finance preset test"
+
+docker compose exec api python -m scripts.seed_org \
+    --name "Acme Insurance" \
+    --slug acme-insurance \
+    --preset policy \
+    --description "Sprint 4 policy preset test"
+
+# comparison print:
+docker compose exec api python -c "
+from services.severity_scorer import calculate_severity_and_cost
+from services.config_loader import get_org_id_by_slug
+
+scenarios = [
+    ('demo-fitness',  'workout_routine',        0.92, 'consumer  — bad workout advice'),
+    ('acme-clinical', 'contraindication',       0.92, 'clinical  — drug interaction missed'),
+    ('acme-finance',  'risk_disclosure',        0.92, 'finance   — missing risk disclosure'),
+    ('acme-insurance','data_privacy_rule',      0.92, 'policy    — GDPR/HIPAA violation'),
+    ('acme-general',  'organizational_policy',  0.92, 'general   — policy inconsistency'),
+]
+
+print(f'{\"Customer\":18s} {\"Entity\":24s} {\"Severity\":10s} {\"Cost\":>12s}   Scenario')
+print('-' * 110)
+for slug, entity, conf, desc in scenarios:
+    org_id = get_org_id_by_slug(slug)
+    r = calculate_severity_and_cost(org_id, entity, nli_confidence=conf)
+    print(f'{slug:18s} {entity:24s} {r.severity:10s} \${r.cost_usd:>10,}   {desc}')
+"

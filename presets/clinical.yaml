@@ -1,0 +1,204 @@
+# =====================================================
+# CLINICAL vertical preset
+# =====================================================
+# Target customers: hospitals, telehealth platforms, pharma, EHR
+# integrations, clinical decision support systems.
+#
+# Tuning rationale:
+#   - Cosine thresholds tightened (0.25 / 0.30 vs consumer 0.40 / 0.45)
+#     because clinical entities cluster densely in embedding space.
+#     A 5mg vs 10mg dose disagreement is small in vector terms but
+#     potentially catastrophic clinically.
+#
+#   - NLI floor lowered (0.60 vs consumer 0.70) because the cost of
+#     a missed contradiction (patient harm + lawsuit) vastly exceeds
+#     the cost of a false positive (clinician dismisses an alert).
+#
+#   - Dedup window doubled (14d vs 7d) — clinical workflows have
+#     longer review cadences; surfacing a contradiction "again next
+#     week" is still actionable.
+#
+#   - Per-entity costs reflect realistic malpractice exposures and
+#     regulatory penalties. Numbers calibrated against publicly
+#     reported settlement medians + HIPAA penalty schedules.
+# =====================================================
+
+detection_config:
+  bootstrap_min_samples: 3
+  high_variance_threshold: 0.30          # tighter than consumer (0.40)
+  semantic_match_threshold: 0.60         # tighter alias semantic match
+  cluster_min_size: 5
+  cluster_merge_threshold: 0.20
+  induction_lookback_days: 7
+  induction_cluster_threshold: 0.30      # tighter clustering for new entities
+  induction_min_cluster_size: 5
+  induction_merge_threshold: 0.20
+  regression_dedup_days: 14              # longer window than consumer
+  semantic_suppression_distance: 0.03    # tighter — alert more often
+  coherence_window_days: 30
+  recency_decay_lambda: 0.05
+  nli_confidence_floor: 0.60             # lower bar than consumer (0.70)
+
+category_thresholds:
+  - category: clinical
+    level_0_cosine: 0.25
+    level_3_cosine: 0.30
+    nli_floor: 0.60
+  - category: compliance
+    level_0_cosine: 0.25
+    level_3_cosine: 0.30
+    nli_floor: 0.65
+  - category: pricing
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+    nli_floor: null                       # use detection_config.nli_confidence_floor
+  - category: policy
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+    nli_floor: 0.65
+  - category: consumer
+    level_0_cosine: 0.40
+    level_3_cosine: 0.45
+    nli_floor: null
+  - category: general
+    level_0_cosine: 0.35
+    level_3_cosine: 0.40
+    nli_floor: null
+
+canonical_entities:
+  - name: medication_dose
+    description: Prescribed dose, frequency, or duration of a medication
+    category: clinical
+    importance: 0.95
+    severity_tier: critical
+    cost_high_usd: 50000
+    cost_critical_usd: 500000
+    aliases:
+      - prescribed_dose
+      - drug_dosage
+      - dosing_regimen
+      - medication_amount
+      - prescription_strength
+
+  - name: medication_selection
+    description: Which medication is recommended or prescribed for a condition
+    category: clinical
+    importance: 0.92
+    severity_tier: critical
+    cost_high_usd: 40000
+    cost_critical_usd: 400000
+    aliases:
+      - drug_choice
+      - prescription_choice
+      - therapy_selection
+      - medication_recommendation
+      - rx_choice
+
+  - name: contraindication
+    description: Drug interactions, conditions, or factors that prohibit a treatment
+    category: clinical
+    importance: 0.98
+    severity_tier: critical
+    cost_high_usd: 75000
+    cost_critical_usd: 750000
+    aliases:
+      - drug_interaction
+      - treatment_restriction
+      - contraindicated_treatment
+      - therapy_conflict
+      - prohibited_combination
+
+  - name: allergy_alert
+    description: Known patient allergies and corresponding restrictions
+    category: clinical
+    importance: 0.95
+    severity_tier: critical
+    cost_high_usd: 50000
+    cost_critical_usd: 500000
+    aliases:
+      - patient_allergy
+      - allergic_reaction_risk
+      - allergen_restriction
+      - hypersensitivity_alert
+
+  - name: vital_threshold
+    description: Clinical thresholds for vitals (BP, HR, glucose, SpO2)
+    category: clinical
+    importance: 0.85
+    severity_tier: high
+    cost_high_usd: 15000
+    cost_critical_usd: 150000
+    aliases:
+      - vitals_target
+      - clinical_threshold
+      - vital_signs_target
+      - blood_pressure_target
+      - heart_rate_target
+
+  - name: procedural_protocol
+    description: Step-by-step clinical or surgical protocols
+    category: clinical
+    importance: 0.88
+    severity_tier: high
+    cost_high_usd: 25000
+    cost_critical_usd: 250000
+    aliases:
+      - clinical_protocol
+      - surgical_procedure
+      - treatment_protocol
+      - workflow_protocol
+      - care_pathway
+
+  - name: discharge_instruction
+    description: Post-discharge care instructions and follow-up requirements
+    category: clinical
+    importance: 0.80
+    severity_tier: high
+    cost_high_usd: 12000
+    cost_critical_usd: 100000
+    aliases:
+      - post_discharge_care
+      - aftercare_instructions
+      - followup_requirement
+      - home_care_guidance
+
+  - name: consent_requirement
+    description: Required informed consent steps and disclosures
+    category: compliance
+    importance: 0.90
+    severity_tier: critical
+    cost_high_usd: 30000
+    cost_critical_usd: 300000
+    aliases:
+      - informed_consent
+      - patient_consent
+      - consent_form_requirement
+      - disclosure_requirement
+      - hipaa_consent
+
+pii_allowlist:
+  - mg
+  - ml
+  - kg
+  - mcg
+  - units
+  - iu
+  - mmhg
+  - bpm
+  - cpt
+  - icd
+  - egfr
+  - hba1c
+  - dose
+  - dosage
+  - blood pressure
+  - oxygen saturation
+  - heart rate
+  - po
+  - iv
+  - im
+  - prn
+  - bid
+  - tid
+  - qid
+  - qd

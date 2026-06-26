@@ -1,0 +1,155 @@
+# =====================================================
+# GENERAL vertical preset (domain-agnostic baseline)
+# =====================================================
+# Target customers: prospects whose vertical doesn't fit clinical,
+# finance, or policy. New customers being onboarded before a vertical
+# is confirmed. Internal test orgs.
+#
+# Tuning philosophy:
+#   - Middle-of-the-road thresholds matching the legacy hardcoded
+#     defaults so behavior is predictable.
+#
+#   - Five canonical entities cover broad categories (process, output,
+#     resource, policy, recommendation). Real customers will discover
+#     their own vocabulary via auto-induction; this just bootstraps
+#     the funnel so detection works on day one.
+#
+#   - Costs are conservative defaults — $500-$5,000 per contradiction
+#     is a reasonable starting point that won't oversell ROI before
+#     real customer numbers are calibrated.
+# =====================================================
+
+detection_config:
+  bootstrap_min_samples: 3
+  high_variance_threshold: 0.40
+  semantic_match_threshold: 0.55
+  cluster_min_size: 5
+  cluster_merge_threshold: 0.20
+  induction_lookback_days: 7
+  induction_cluster_threshold: 0.35
+  induction_min_cluster_size: 5
+  induction_merge_threshold: 0.20
+  regression_dedup_days: 7
+  semantic_suppression_distance: 0.05
+  coherence_window_days: 30
+  recency_decay_lambda: 0.05
+  nli_confidence_floor: 0.70
+
+category_thresholds:
+  - category: general
+    level_0_cosine: 0.35
+    level_3_cosine: 0.40
+    nli_floor: 0.70
+  - category: consumer
+    level_0_cosine: 0.40
+    level_3_cosine: 0.45
+    nli_floor: null
+  - category: policy
+    level_0_cosine: 0.35
+    level_3_cosine: 0.40
+    nli_floor: null
+  - category: pricing
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+    nli_floor: null
+  - category: compliance
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+    nli_floor: null
+  - category: clinical
+    level_0_cosine: 0.25
+    level_3_cosine: 0.30
+    nli_floor: 0.60
+
+canonical_entities:
+  - name: process_step
+    description: A defined step or stage in a workflow or process
+    category: general
+    importance: 0.70
+    severity_tier: medium
+    cost_high_usd: 2000
+    cost_critical_usd: 10000
+    aliases:
+      - workflow_step
+      - process_stage
+      - procedure_step
+      - task_sequence
+      - operational_step
+
+  - name: output_specification
+    description: Required attributes, format, or content of a produced output
+    category: general
+    importance: 0.75
+    severity_tier: high
+    cost_high_usd: 3000
+    cost_critical_usd: 15000
+    aliases:
+      - deliverable_spec
+      - output_format
+      - product_specification
+      - artifact_requirement
+      - result_criteria
+
+  - name: resource_allocation
+    description: How resources (budget, time, personnel) are assigned
+    category: general
+    importance: 0.72
+    severity_tier: medium
+    cost_high_usd: 2500
+    cost_critical_usd: 25000
+    aliases:
+      - budget_allocation
+      - resource_assignment
+      - capacity_planning
+      - staffing_decision
+      - time_allocation
+
+  - name: organizational_policy
+    description: A stated rule or guideline that governs decisions
+    category: policy
+    importance: 0.80
+    severity_tier: high
+    cost_high_usd: 5000
+    cost_critical_usd: 50000
+    aliases:
+      - org_policy
+      - guideline
+      - operating_principle
+      - decision_rule
+      - governance_rule
+
+  - name: recommendation
+    description: A specific recommendation or course of action provided to a user
+    category: general
+    importance: 0.78
+    severity_tier: high
+    cost_high_usd: 3500
+    cost_critical_usd: 20000
+    aliases:
+      - suggestion
+      - guidance
+      - advised_action
+      - recommended_next_step
+      - proposed_action
+
+pii_allowlist:
+  - id
+  - uid
+  - uuid
+  - url
+  - api
+  - sdk
+  - sla
+  - okr
+  - kpi
+  - eta
+  - sop
+  - mvp
+  - poc
+  - roi
+  - cac
+  - ltv
+  - arr
+  - mrr
+  - dau
+  - mau

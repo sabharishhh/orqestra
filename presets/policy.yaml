@@ -1,0 +1,200 @@
+# =====================================================
+# POLICY vertical preset
+# =====================================================
+# Target customers: insurance carriers, legal operations, HR policy,
+# corporate compliance, regulatory affairs teams.
+#
+# Tuning rationale:
+#   - Policy and compliance are the dominant categories; thresholds
+#     calibrated to be sensitive without overwhelming review queues.
+#
+#   - NLI floor 0.65 — these customers care more about consistency
+#     than about catching low-confidence edge cases.
+#
+#   - Costs are lower than clinical/finance because most resolutions
+#     are policy clarifications or training updates, not lawsuits.
+#     Critical cases (regulatory finding, ADA/EEOC violation) still
+#     hit six figures.
+# =====================================================
+
+detection_config:
+  bootstrap_min_samples: 3
+  high_variance_threshold: 0.35
+  semantic_match_threshold: 0.58
+  cluster_min_size: 5
+  cluster_merge_threshold: 0.20
+  induction_lookback_days: 7
+  induction_cluster_threshold: 0.33
+  induction_min_cluster_size: 5
+  induction_merge_threshold: 0.20
+  regression_dedup_days: 10
+  semantic_suppression_distance: 0.05
+  coherence_window_days: 30
+  recency_decay_lambda: 0.05
+  nli_confidence_floor: 0.65
+
+category_thresholds:
+  - category: policy
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+    nli_floor: 0.65
+  - category: compliance
+    level_0_cosine: 0.28
+    level_3_cosine: 0.33
+    nli_floor: 0.65
+  - category: pricing
+    level_0_cosine: 0.30
+    level_3_cosine: 0.35
+    nli_floor: null
+  - category: clinical
+    level_0_cosine: 0.25
+    level_3_cosine: 0.30
+    nli_floor: 0.60
+  - category: consumer
+    level_0_cosine: 0.40
+    level_3_cosine: 0.45
+    nli_floor: null
+  - category: general
+    level_0_cosine: 0.35
+    level_3_cosine: 0.40
+    nli_floor: null
+
+canonical_entities:
+  - name: coverage_decision
+    description: Whether a claim, treatment, service, or expense is covered under a policy
+    category: policy
+    importance: 0.92
+    severity_tier: high
+    cost_high_usd: 25000
+    cost_critical_usd: 250000
+    aliases:
+      - claim_coverage
+      - benefit_eligibility
+      - covered_service
+      - in_network_coverage
+      - prior_authorization
+
+  - name: eligibility_criteria
+    description: Who qualifies for a policy, benefit, role, or program
+    category: policy
+    importance: 0.88
+    severity_tier: high
+    cost_high_usd: 15000
+    cost_critical_usd: 150000
+    aliases:
+      - qualification_rules
+      - enrollment_criteria
+      - membership_requirements
+      - benefit_eligibility_rules
+      - participation_rules
+
+  - name: exclusion_clause
+    description: What is explicitly NOT covered, allowed, or permitted under a policy
+    category: policy
+    importance: 0.90
+    severity_tier: high
+    cost_high_usd: 30000
+    cost_critical_usd: 300000
+    aliases:
+      - policy_exclusion
+      - exception_list
+      - excluded_service
+      - non_covered_item
+      - exclusion_rider
+
+  - name: claim_settlement
+    description: Settlement amounts, timelines, and procedures for filed claims
+    category: pricing
+    importance: 0.92
+    severity_tier: high
+    cost_high_usd: 40000
+    cost_critical_usd: 500000
+    aliases:
+      - claim_payment
+      - settlement_amount
+      - claim_resolution
+      - payout_amount
+      - claim_processing
+
+  - name: regulatory_obligation
+    description: Required regulatory filings, notices, or compliance actions
+    category: compliance
+    importance: 0.95
+    severity_tier: critical
+    cost_high_usd: 100000
+    cost_critical_usd: 2500000
+    aliases:
+      - filing_requirement
+      - regulatory_disclosure
+      - mandated_notice
+      - compliance_obligation
+      - reporting_requirement
+
+  - name: workplace_policy
+    description: HR policies covering conduct, accommodations, leave, harassment, discrimination
+    category: compliance
+    importance: 0.90
+    severity_tier: high
+    cost_high_usd: 50000
+    cost_critical_usd: 1000000
+    aliases:
+      - hr_policy
+      - employee_conduct_rule
+      - accommodation_policy
+      - leave_policy
+      - harassment_policy
+      - discrimination_policy
+
+  - name: contract_term
+    description: Specific terms, conditions, or clauses in a binding agreement
+    category: policy
+    importance: 0.88
+    severity_tier: high
+    cost_high_usd: 25000
+    cost_critical_usd: 500000
+    aliases:
+      - agreement_clause
+      - contractual_obligation
+      - sla_term
+      - service_level_commitment
+      - terms_of_service
+
+  - name: data_privacy_rule
+    description: GDPR, CCPA, HIPAA, or similar data handling and consent rules
+    category: compliance
+    importance: 0.93
+    severity_tier: critical
+    cost_high_usd: 75000
+    cost_critical_usd: 5000000
+    aliases:
+      - privacy_policy
+      - data_handling_rule
+      - consent_rule
+      - gdpr_requirement
+      - ccpa_requirement
+      - hipaa_requirement
+      - data_subject_right
+
+pii_allowlist:
+  - gdpr
+  - ccpa
+  - hipaa
+  - ferpa
+  - sox
+  - ada
+  - eeoc
+  - dol
+  - osha
+  - fmla
+  - cobra
+  - erisa
+  - irs
+  - dmv
+  - mou
+  - nda
+  - sla
+  - poc
+  - poa
+  - ein
+  - tin
+  - npi
