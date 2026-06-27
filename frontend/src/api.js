@@ -30,3 +30,15 @@ export const fetchLineage = async (id) => {
     if (!response.ok) throw new Error('Lineage data not found');
     return response.json();
 };
+
+export const fetchLineageGraph = async (id) => {
+    const response = await fetch(`${API_BASE}/contradictions/${id}/lineage-graph`);
+    if (!response.ok) throw new Error('Lineage graph not found');
+    return response.json();
+};
+
+export const fetchBlastRadius = async (id) => {
+    const response = await fetch(`${API_BASE}/contradictions/${id}/blast-radius`);
+    if (!response.ok) throw new Error('Blast radius not found');
+    return response.json();
+};

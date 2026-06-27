@@ -1,126 +1,190 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactFlow, { Background, Controls, MarkerType, Handle, Position } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { fetchLineage } from '../api';
+import { GitMerge, AlertCircle, Sparkles } from 'lucide-react';
+import { fetchLineageGraph } from '../api';
 
-// --- CUSTOM NODES TO MATCH YOUR SCREENSHOTS ---
+// =====================================================
+// CUSTOM NODE COMPONENTS
+// =====================================================
 
 const AgentNode = ({ data }) => (
-    <div className="bg-[#0A0F24] border-2 border-blue-600 rounded-[2rem] px-8 py-6 flex flex-col items-center justify-center shadow-[0_0_30px_-5px_rgba(37,99,235,0.5)] min-w-[200px]">
+    <div className="bg-[#0A0F24] border-2 border-blue-600 rounded-3xl px-6 py-4 flex flex-col items-center justify-center shadow-[0_0_30px_-5px_rgba(37,99,235,0.5)] min-w-[180px]">
         <Handle type="target" position={Position.Top} className="opacity-0" />
-        <span className="text-blue-400 text-[10px] font-bold tracking-[0.2em] mb-1">AGENT NODE</span>
-        <span className="text-white text-xl font-bold">{data.agentName || 'UnknownAgent'}</span>
+        <span className="text-blue-400 text-[9px] font-bold tracking-[0.2em] mb-0.5">AGENT NODE</span>
+        <span className="text-white text-base font-bold">{data.agentName || 'Unknown'}</span>
         <Handle type="source" position={Position.Bottom} className="opacity-0" />
     </div>
 );
 
-const ClaimNode = ({ data }) => (
-    <div className="bg-[#0B1120] border border-slate-700/60 rounded-xl p-4 w-[320px] shadow-xl relative overflow-hidden">
-        {data.isConflict && (
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-red-400" />
-        )}
-        <Handle type="target" position={Position.Top} className="opacity-0" />
-        
-        <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold text-slate-500 tracking-widest">CLAIM</span>
-            <span className="bg-blue-900/30 text-blue-400 text-[10px] font-bold uppercase px-2 py-1 rounded">
-                {data.entityHint ? (data.entityHint.length > 15 ? data.entityHint.slice(0, 15) + '...' : data.entityHint) : 'UNKNOWN'}
-            </span>
+const ClaimNode = ({ data }) => {
+    // Visual hierarchy:
+    //   - LCA claim: indigo top border + sparkle badge
+    //   - Conflict roots (depth 0): red gradient top border
+    //   - Side A: subtle left border tint
+    //   - Side B: subtle right border tint
+    //   - Descendants: faded background to push focus to the root row
+    const isLCA = data.isLCA;
+    const isConflict = data.isConflict;
+    const depth = data.depth ?? 0;
+
+    const topBorderClass = isLCA
+        ? 'bg-gradient-to-r from-indigo-600 to-violet-500'
+        : isConflict
+            ? 'bg-gradient-to-r from-red-600 to-red-400'
+            : depth > 0
+                ? 'bg-gradient-to-r from-slate-700 to-slate-600'
+                : 'bg-gradient-to-r from-slate-700 to-slate-600';
+
+    const sideAccent = data.side === 'A'
+        ? 'border-l-blue-500/30'
+        : data.side === 'B'
+            ? 'border-r-blue-500/30'
+            : '';
+
+    return (
+        <div className={`bg-[#0B1120] border border-slate-700/60 ${sideAccent} rounded-xl p-3.5 w-[300px] shadow-xl relative overflow-hidden ${depth > 0 ? 'opacity-90' : ''}`}>
+            <div className={`absolute top-0 left-0 w-full h-1 ${topBorderClass}`} />
+            <Handle type="target" position={Position.Top} className="opacity-0" />
+
+            <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-500 tracking-widest">
+                        {isLCA ? 'LCA' : isConflict ? 'ROOT' : 'CLAIM'}
+                    </span>
+                    {isLCA && <Sparkles className="w-3 h-3 text-indigo-400" />}
+                    {isConflict && <AlertCircle className="w-3 h-3 text-red-400" />}
+                </div>
+                <span className="bg-blue-900/30 text-blue-400 text-[9px] font-bold uppercase px-2 py-0.5 rounded font-mono">
+                    {data.entityHint
+                        ? (data.entityHint.length > 18 ? data.entityHint.slice(0, 18) + '…' : data.entityHint)
+                        : 'UNKNOWN'}
+                </span>
+            </div>
+
+            <div className="text-slate-300 font-mono text-xs leading-relaxed mb-2.5 line-clamp-3">
+                "{data.claimText}"
+            </div>
+
+            <div className="flex justify-between items-center text-[10px] font-mono">
+                <span className="text-slate-500">{data.systemName || '—'}</span>
+                <span className="text-slate-600">
+                    depth: <span className={depth === 0 ? 'text-red-400' : 'text-slate-400'}>{depth}</span>
+                </span>
+            </div>
+
+            <Handle type="source" position={Position.Bottom} className="opacity-0" />
         </div>
-        
-        <div className="text-slate-300 font-mono text-sm leading-relaxed">
-            "{data.claimText}"
-        </div>
-        
-        <Handle type="source" position={Position.Bottom} className="opacity-0" />
-    </div>
-);
+    );
+};
 
 const nodeTypes = {
     agentNode: AgentNode,
     claimNode: ClaimNode,
 };
 
-// --- MAIN COMPONENT ---
+// =====================================================
+// MAIN COMPONENT
+// =====================================================
 
 export default function ContradictionLineageTree({ conflict }) {
-    const [data, setData] = useState(null);
+    const [graph, setGraph] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!conflict) return;
-        
-        // Attempt to fetch real lineage from Postgres
-        fetchLineage(conflict.id)
-            .then(res => setData(res))
-            .catch((err) => {
-                console.warn("Lineage endpoint failed. Loading dynamic visual mock.", err);
-                // Fallback now uses the actual card's data!
-                setData(generateDynamicMock(conflict));
-            });
-    }, [conflict]);
+        setGraph(null);
+        setError(null);
 
-    if (!data) return <div className="p-6 text-slate-400 font-mono animate-pulse">Computing causal lineage...</div>;
+        fetchLineageGraph(conflict.id)
+            .then(setGraph)
+            .catch((err) => {
+                console.warn("Lineage graph endpoint failed:", err);
+                setError("Unable to load lineage graph.");
+            });
+    }, [conflict?.id]);
+
+    if (error) {
+        return (
+            <div className="h-[500px] bg-[#020617] rounded-2xl border border-slate-800 flex items-center justify-center">
+                <div className="text-center text-slate-500 font-mono text-sm">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                    {error}
+                </div>
+            </div>
+        );
+    }
+
+    if (!graph) {
+        return (
+            <div className="h-[500px] bg-[#020617] rounded-2xl border border-slate-800 flex items-center justify-center">
+                <div className="text-slate-400 font-mono text-sm animate-pulse">
+                    Computing causal lineage...
+                </div>
+            </div>
+        );
+    }
+
+    // Layout edges need MarkerType objects, not plain strings — ReactFlow quirk
+    const edgesWithMarkers = (graph.edges || []).map(e => ({
+        ...e,
+        markerEnd: e.markerEnd
+            ? { type: MarkerType.ArrowClosed, color: e.style?.stroke || '#475569' }
+            : undefined,
+    }));
 
     return (
-        <div className="h-[500px] bg-[#020617] rounded-2xl border border-slate-800 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full z-10 px-5 py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/50 backdrop-blur-sm">
+        <div className="h-[560px] bg-[#020617] rounded-2xl border border-slate-800 relative overflow-hidden">
+            {/* Header */}
+            <div className="absolute top-0 left-0 w-full z-10 px-5 py-3 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/70 backdrop-blur-sm">
                 <h3 className="font-bold text-slate-200 text-sm flex items-center gap-2">
-                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
+                    <GitMerge className="w-4 h-4 text-blue-500" />
                     Causal Lineage
+                    <span className="text-[10px] font-mono text-slate-500 ml-2">
+                        {graph.node_count} nodes · {graph.edge_count} edges
+                    </span>
                 </h3>
-                <div className="flex gap-4 text-xs font-mono">
-                    {data.has_shared_ancestor ? (
-                        <span className="text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">
-                            Shared Ancestor Detected (Distance A: {data.fork_distance_a}, B: {data.fork_distance_b})
+                <div className="flex gap-2 text-[10px] font-mono">
+                    {graph.has_shared_ancestor ? (
+                        <span className="text-indigo-300 bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20 flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3" />
+                            LCA found · fork A:{graph.fork_distance_a} / B:{graph.fork_distance_b}
                         </span>
                     ) : (
-                        <span className="text-red-400 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+                        <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20">
                             ⚠ No shared ancestor — independent origin
                         </span>
                     )}
                 </div>
             </div>
-            
-            <ReactFlow 
-                nodes={data.nodes} 
-                edges={data.edges} 
+
+            <ReactFlow
+                nodes={graph.nodes}
+                edges={edgesWithMarkers}
                 nodeTypes={nodeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.2 }}
-                attributionPosition="bottom-right"
+                defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+                onInit={(instance) => {
+                    // One-shot fit on first render; never re-fits when nodes/edges change
+                    setTimeout(() => instance.fitView({ padding: 0.25, duration: 0 }), 50);
+                }}
+                minZoom={0.2}
+                maxZoom={2}
+                nodesDraggable={true}
+                nodesConnectable={false}
+                elementsSelectable={true}
+                panOnDrag={true}
+                panOnScroll={false}
+                zoomOnScroll={true}
+                zoomOnPinch={true}
+                zoomOnDoubleClick={true}
+                proOptions={{ hideAttribution: true }}
             >
-                <Background color="#1E293B" gap={20} size={1} />
-                <Controls className="bg-slate-900 border-slate-700 fill-slate-300" />
+                <Background color="#1E293B" gap={24} size={1} />
+                <Controls
+                    showInteractive={false}
+                    className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl [&>button]:bg-slate-900 [&>button]:border-slate-700 [&>button]:text-slate-300 [&>button:hover]:bg-slate-800"
+                />
             </ReactFlow>
         </div>
     );
-}
-
-// --- DYNAMIC DATA GENERATOR ---
-function generateDynamicMock(conflict) {
-    return {
-        has_shared_ancestor: true,
-        fork_distance_a: 1,
-        fork_distance_b: 1,
-        nodes: [
-            { id: 'root', type: 'agentNode', position: { x: 300, y: 50 }, data: { agentName: 'System Core' } },
-            
-            // dynamically mapping system A
-            { id: 'anc_a', type: 'claimNode', position: { x: 50, y: 200 }, data: { entityHint: conflict.entity_hint, claimText: conflict.system_a.claim } },
-            { id: 'agent_a', type: 'agentNode', position: { x: 100, y: 400 }, data: { agentName: conflict.system_a.name } },
-            
-            // dynamically mapping system B
-            { id: 'anc_b', type: 'claimNode', position: { x: 450, y: 200 }, data: { entityHint: conflict.entity_hint, claimText: conflict.system_b.claim } },
-            { id: 'agent_b', type: 'agentNode', position: { x: 500, y: 400 }, data: { agentName: conflict.system_b.name } },
-        ],
-        edges: [
-            { id: 'e1', source: 'root', target: 'anc_a', animated: true, style: { stroke: '#475569', strokeWidth: 2 } },
-            { id: 'e2', source: 'root', target: 'anc_b', animated: true, style: { stroke: '#475569', strokeWidth: 2 } },
-            { id: 'e3', source: 'anc_a', target: 'agent_a', markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#3B82F6', strokeWidth: 2 } },
-            { id: 'e4', source: 'anc_b', target: 'agent_b', markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#3B82F6', strokeWidth: 2 } },
-            { id: 'e5', source: 'agent_a', target: 'agent_b', animated: true, style: { stroke: '#EF4444', strokeWidth: 3, strokeDasharray: '5,5' }, label: 'CONTRADICTION', labelStyle: { fill: '#EF4444', fontWeight: 700 }, labelBgStyle: { fill: '#0B1120' } }
-        ]
-    };
 }

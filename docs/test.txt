@@ -1,0 +1,42 @@
+# Push the new costs to the DB
+docker compose exec api python -m scripts.seed_org \
+    --name "Demo Fitness" --slug demo-fitness --preset consumer
+
+# Flush cache so new costs propagate immediately
+docker compose exec redis redis-cli FLUSHDB
+
+# Clear stale data
+docker compose exec postgres psql -U postgres -d orqestra -c "
+DELETE FROM contradictions;
+DELETE FROM entity_belief_states;
+DELETE FROM claims;
+"
+
+# Run the elaborate injector in burst mode for fast verification
+python scripts/inject_traffic_elaborate.py --burst
+
+# Give Celery time to process all turns through extraction → SCCG → OBG → detection
+sleep 90
+
+# Check the data shape
+docker compose exec postgres psql -U postgres -d orqestra -c "
+SELECT s.name, COUNT(c.id) AS claims FROM systems s LEFT JOIN claims c ON c.system_id = s.id GROUP BY s.name ORDER BY s.name;
+"
+
+docker compose exec postgres psql -U postgres -d orqestra -c "
+SELECT severity, cost_usd, nli_score, a.entity_hint
+FROM contradictions
+JOIN claims a ON contradictions.claim_a_id = a.id
+ORDER BY detected_at DESC;
+"
+
+docker compose exec postgres psql -U postgres -d orqestra -c "
+SELECT
+  s.name,
+  COUNT(*) AS total_claims,
+  COUNT(parent_claim_id) AS claims_with_parents
+FROM claims c
+JOIN systems s ON c.system_id = s.id
+GROUP BY s.name
+ORDER BY s.name;
+"

@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Router Imports
-from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi, canon, blast_radius
+from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi, canon, blast_radius, lineage
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Orqestra.API")
@@ -75,6 +76,7 @@ app.include_router(systems.router, prefix="/systems", tags=["Systems"])
 app.include_router(samples.router, prefix="/systems", tags=["Ingestion"])
 app.include_router(contradictions.router, prefix="/contradictions", tags=["Contradictions"])
 app.include_router(blast_radius.router, prefix="/contradictions", tags=["Blast Radius"])
+app.include_router(lineage.router, prefix="/contradictions", tags=["Lineage Graph"])
 app.include_router(resolutions.router, prefix="/resolutions", tags=["Resolutions"])
 app.include_router(entities.router, prefix="/entities", tags=["OBG Entities"])
 app.include_router(graph.router, prefix="/graph", tags=["SCCG Visualizer"])
