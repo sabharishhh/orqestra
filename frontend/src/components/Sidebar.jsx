@@ -13,8 +13,18 @@ const navItem = ({ isActive }) =>
 export default function Sidebar() {
   return (
     <aside className="w-60 shrink-0 bg-[var(--color-surface-1)] border-r border-[var(--color-border-default)] h-screen flex flex-col">
+      {/* Brand */}
+      <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[var(--color-border-default)]">
+        <span className="text-[16px] font-bold tracking-[-0.01em] text-[var(--color-accent)]">
+          ORQESTRA
+        </span>
+        <span className="font-mono text-[10px] tracking-[0.05em] text-[var(--color-text-tertiary)] uppercase">
+          preview_build
+        </span>
+      </div>
+
       {/* Org switcher */}
-      <button className="h-14 px-4 flex items-center justify-between border-b border-[var(--color-border-default)] hover:bg-[var(--color-surface-2)] transition-colors">
+      <button className="h-12 px-4 flex items-center justify-between border-b border-[var(--color-border-default)] hover:bg-[var(--color-surface-2)] transition-colors">
         <div className="flex flex-col items-start">
           <span className="text-[10px] font-bold tracking-[0.05em] uppercase text-[var(--color-text-tertiary)]">
             Organization

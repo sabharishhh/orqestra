@@ -10,22 +10,21 @@ import { Database, Share2 } from 'lucide-react';
 
 const UniversalHandles = () => (
   <>
-    <Handle type="target" position={Position.Top} className="opacity-0" />
-    <Handle type="source" position={Position.Bottom} className="opacity-0" />
-    <Handle type="target" position={Position.Left} className="opacity-0" />
-    <Handle type="source" position={Position.Right} className="opacity-0" />
+    <Handle type="target" position={Position.Top} className="!opacity-0 !w-1 !h-1 !border-0 !bg-transparent" />
+    <Handle type="source" position={Position.Bottom} className="!opacity-0 !w-1 !h-1 !border-0 !bg-transparent" />
   </>
 );
 
 const SystemNode = ({ data }) => (
   <div
-    className="bg-[var(--color-surface-1)] border-[1.5px] border-[var(--color-accent)] px-4 py-3 min-w-[140px] flex flex-col items-center"
+    className="bg-[var(--color-surface-2)] border-2 border-[var(--color-accent)] px-6 py-4 min-w-[180px] flex flex-col items-center"
+    style={{ boxShadow: '0 0 24px -8px var(--color-accent)' }}
   >
     <UniversalHandles />
-    <div className="font-mono text-[10px] font-bold tracking-[0.05em] text-[var(--color-accent)] mb-0.5">
+    <div className="font-mono text-[10px] font-bold tracking-[0.1em] text-[var(--color-accent)] mb-1">
       AGENT
     </div>
-    <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">
+    <div className="text-[16px] font-bold text-[var(--color-text-primary)]">
       {data.label}
     </div>
   </div>
@@ -68,22 +67,32 @@ const applyForceLayout = (nodes, edges) => {
   const simEdges = edges.map(e => ({ ...e }));
 
   const simulation = forceSimulation(simNodes)
-    .force('link', forceLink(simEdges).id(d => d.id).distance(link => {
-      if (link.type === 'contradiction') return 80;
-      if (link.type === 'about') return 60;
-      return 120;
-    }).strength(0.6))
-    .force('charge', forceManyBody().strength(-600).distanceMax(500))
-    .force('center', forceCenter(0, 0).strength(0.08))
+    .force('link', forceLink(simEdges).id(d => d.id)
+      .distance(link => {
+        if (link.type === 'contradiction') return 220;
+        if (link.type === 'about') return 90;
+        return 55;
+      })
+      .strength(link => {
+        if (link.type === 'contradiction') return 0.3;
+        return 1.0;
+      })
+    )
+    .force('charge', forceManyBody().strength(node => {
+      if (node.type === 'system') return -6000;
+      if (node.type === 'entity') return -2000;
+      return -400;
+    }).distanceMax(1200))
+    .force('center', forceCenter(0, 0).strength(0.015))
     .force('collide', forceCollide().radius(node => {
-      if (node.type === 'system') return 80;
-      if (node.type === 'entity') return 70;
+      if (node.type === 'system') return 180;
+      if (node.type === 'entity') return 100;
       return 110;
-    }).strength(0.9))
-    .force('x', forceX(0).strength(0.04))
-    .force('y', forceY(0).strength(0.04));
+    }).strength(1))
+    .force('x', forceX(0).strength(0.015))
+    .force('y', forceY(0).strength(0.015));
 
-  for (let i = 0; i < 500; i++) simulation.tick();
+  for (let i = 0; i < 600; i++) simulation.tick();
 
   return {
     layoutedNodes: simNodes.map(n => ({ ...n, position: { x: n.x, y: n.y } })),
@@ -123,9 +132,10 @@ export default function KnowledgeGraph() {
         return {
           id: `${l.source}-${l.target}-${l.type}`,
           source: l.source, target: l.target,
-          type: 'straight', animated,
+          type: 'default',
+          animated,
           style: { strokeWidth, stroke: color },
-          markerEnd: { type: MarkerType.ArrowClosed, color },
+          markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
         };
       });
 
@@ -133,7 +143,6 @@ export default function KnowledgeGraph() {
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
 
-      // Refit view once layout settles
       setTimeout(() => {
         reactFlowInstance.current?.fitView({ padding: 0.2, duration: 400 });
       }, 50);
@@ -149,13 +158,36 @@ export default function KnowledgeGraph() {
     return () => clearInterval(t);
   }, [fetchGraphData]);
 
+  const onNodeDrag = useCallback((event, draggedNode) => {
+    if (draggedNode.type !== 'system') return;
+
+    const connectedClaimIds = new Set();
+    edges.forEach(e => {
+      if (e.source === draggedNode.id) connectedClaimIds.add(e.target);
+      if (e.target === draggedNode.id) connectedClaimIds.add(e.source);
+    });
+
+    const prev = nodes.find(n => n.id === draggedNode.id);
+    if (!prev) return;
+    const dx = draggedNode.position.x - prev.position.x;
+    const dy = draggedNode.position.y - prev.position.y;
+    if (dx === 0 && dy === 0) return;
+
+    setNodes(curr => curr.map(n => {
+      if (n.id === draggedNode.id) return n;
+      if (!connectedClaimIds.has(n.id)) return n;
+      if (n.type !== 'claim') return n;
+      return { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } };
+    }));
+  }, [nodes, edges, setNodes]);
+
   return (
     <div className="flex flex-col h-screen">
       <header className="h-14 px-6 flex items-center justify-between border-b border-[var(--color-border-default)] bg-[var(--color-surface-1)]">
         <div className="flex items-center gap-2">
           <Share2 size={16} strokeWidth={1.5} className="text-[var(--color-accent)]" />
           <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)] tracking-[-0.01em]">
-            Knowledge Graph
+            Topology Graph
           </h1>
         </div>
         <span className="font-mono text-[13px] text-[var(--color-text-secondary)]">
@@ -169,6 +201,7 @@ export default function KnowledgeGraph() {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeDrag={onNodeDrag}
           nodeTypes={nodeTypes}
           onInit={(instance) => { reactFlowInstance.current = instance; }}
           defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
@@ -183,7 +216,6 @@ export default function KnowledgeGraph() {
           />
         </ReactFlow>
 
-        {/* Legend */}
         <div className="absolute top-4 left-4 bg-[var(--color-surface-1)] border border-[var(--color-border-default)] px-4 py-3 pointer-events-none">
           <div className="text-[11px] font-bold tracking-[0.05em] uppercase text-[var(--color-text-tertiary)] mb-2">
             Legend
@@ -216,4 +248,4 @@ function LegendItem({ color, label, box, line }) {
       {label}
     </span>
   );
-}
+} 

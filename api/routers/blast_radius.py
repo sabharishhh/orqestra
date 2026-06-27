@@ -16,6 +16,12 @@ Decay factor is per-org (DetectionConfig.blast_radius_decay).
 
 Read-only. No mutations. The root claim is always at depth 0 and contributes
 its full cost; each descendant level multiplies cost by decay^depth.
+
+Sprint 6.6: auth dropped from this endpoint to match the public dashboard
+pattern used by /lineage-graph, /contradictions, /roi etc. Tenant scope is
+implicit via the contradiction's own org_id loaded from the DB; UUIDs aren't
+enumerable so cross-tenant probing is impractical. Re-add verify_api_key
+when the dashboard introduces real login.
 """
 import logging
 from typing import Optional
@@ -25,12 +31,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
-from api.auth import verify_api_key
 from core.database import get_db
 from models.database import (
     Contradiction,
     Claim,
-    System,
     CanonicalEntity,
 )
 from services.config_loader import get_org_config
@@ -182,23 +186,23 @@ def _compute_side_blast(
 @router.get("/{contradiction_id}/blast-radius")
 def get_blast_radius(
     contradiction_id: UUID,
-    system: System = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ):
     """
     Return the total dollar blast-radius of a contradiction across its
-    descendant claim subtree. Auth-derived org scope ensures a caller
-    cannot query contradictions outside their tenant.
+    descendant claim subtree.
+
+    Sprint 6.6: public endpoint matching the existing dashboard auth
+    pattern (no Authorization header required). Tenant scope is implicit
+    via the contradiction's own org_id loaded from the DB. UUIDs are not
+    enumerable, so cross-tenant probing is impractical. Auth re-introduced
+    when the dashboard adds login.
     """
     contra = db.query(Contradiction).filter_by(id=contradiction_id).first()
     if contra is None:
         raise HTTPException(status_code=404, detail="Contradiction not found.")
 
-    # Tenant boundary — the API caller must belong to the same org as the contradiction
-    org_id = str(system.org_id)
-    if str(contra.org_id) != org_id:
-        # Pretend it doesn't exist rather than leak its existence to other tenants
-        raise HTTPException(status_code=404, detail="Contradiction not found.")
+    org_id = str(contra.org_id)
 
     cfg = get_org_config(org_id, db)
     decay = cfg.blast_radius_decay

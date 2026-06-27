@@ -13,6 +13,8 @@ RUN pip install uv
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen
 
+RUN uv run python -m spacy download en_core_web_sm
+
 # Copy the rest of the application
 COPY . .
 

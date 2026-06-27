@@ -66,6 +66,41 @@
   }
 }
 
+/* =====================================================
+   ReactFlow — Neo4j-style active relationships
+   ===================================================== */
+.react-flow__edge.animated path {
+  stroke-dasharray: 8 4;
+  animation: dashflow 1.2s linear infinite;
+}
+
+.react-flow__edge path {
+  transition: stroke-width 120ms ease-out, opacity 120ms ease-out;
+}
+
+.react-flow__edge:hover path {
+  stroke-width: 3 !important;
+  opacity: 1 !important;
+}
+
+.react-flow__edge.selected path {
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+@keyframes dashflow {
+  to { stroke-dashoffset: -24; }
+}
+
+/* Subtle node hover lift — no shadow muddiness, just border emphasis */
+.react-flow__node {
+  transition: transform 120ms ease-out;
+}
+.react-flow__node:hover {
+  transform: translateY(-1px);
+  z-index: 10;
+}
+
 /* Inter + JetBrains Mono from Google Fonts — add to index.html <head>:
    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 */

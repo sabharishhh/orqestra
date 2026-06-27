@@ -1,7 +1,8 @@
 import { useEffect, useState, Fragment } from 'react';
-import { fetchContradictions, fetchResolution } from '../api';
+import { fetchContradictions, fetchResolution, fetchBlastRadius } from '../api';
 import ContradictionLineageTree from './ContradictionLineageTree';
-import { Network, Wand2, Check, ChevronRight, Inbox } from 'lucide-react';
+import BlastRadiusPanel from './BlastRadiusPanel';
+import { Network, Wand2, Check, ChevronRight, Inbox, Target } from 'lucide-react';
 import EstateScoreHeader from './EstateScoreHeader';
 
 const SEV_STYLES = {
@@ -34,11 +35,33 @@ export default function ContradictionFeed() {
   const [expandedId, setExpandedId] = useState(null);
   const [lineageId, setLineageId] = useState(null);
 
+  // Sprint 6.6: blast-radius state — eager-fetched per contradiction + slide-over panel
+  const [blastByContradictionId, setBlastByContradictionId] = useState({});
+  const [openPanelId, setOpenPanelId] = useState(null);
+
+  // Poll for contradictions
   useEffect(() => {
     fetchContradictions().then(setConflicts).catch(console.error);
     const t = setInterval(() => fetchContradictions().then(setConflicts).catch(console.error), 5000);
     return () => clearInterval(t);
   }, []);
+
+  // Eager-fetch blast-radius for every contradiction in view so the
+  // table's "Exposure" column shows real numbers without skeleton loaders.
+  useEffect(() => {
+    if (!conflicts || conflicts.length === 0) return;
+
+    conflicts.forEach((c) => {
+      if (blastByContradictionId[c.id]) return;  // already fetched
+      fetchBlastRadius(c.id)
+        .then((data) => {
+          setBlastByContradictionId((prev) => ({ ...prev, [c.id]: data }));
+        })
+        .catch((err) => {
+          console.warn(`Blast-radius fetch failed for ${c.id}:`, err);
+        });
+    });
+  }, [conflicts]);
 
   const loadResolution = async (id, e) => {
     e?.stopPropagation();
@@ -84,8 +107,9 @@ export default function ContradictionFeed() {
                 <th className="px-3 py-2.5 w-[100px]">Sev</th>
                 <th className="px-3 py-2.5">Entity</th>
                 <th className="px-3 py-2.5">Systems</th>
-                <th className="px-3 py-2.5 text-right w-[100px]">Conf</th>
-                <th className="px-3 py-2.5 w-[120px]">Actions</th>
+                <th className="px-3 py-2.5 text-right w-[90px]">Conf</th>
+                <th className="px-3 py-2.5 text-right w-[140px]">Exposure</th>
+                <th className="px-3 py-2.5 w-[60px]"></th>
               </tr>
             </thead>
             <tbody>
@@ -93,6 +117,7 @@ export default function ContradictionFeed() {
                 const isExpanded = expandedId === c.id;
                 const isLineage = lineageId === c.id;
                 const res = resolutions[c.id];
+                const blast = blastByContradictionId[c.id];
                 return (
                   <Fragment key={c.id}>
                     <tr
@@ -115,6 +140,23 @@ export default function ContradictionFeed() {
                       <td className="px-3 py-2.5 text-right font-mono text-[13px] text-[var(--color-text-body)]">
                         {(c.nli_score * 100).toFixed(0)}%
                       </td>
+                      <td className="px-3 py-2.5 text-right font-mono">
+                        {blast ? (
+                          <div className="flex items-baseline justify-end gap-2">
+                            <span
+                              className="text-[14px] font-bold tabular-nums"
+                              style={{ color: 'var(--color-sev-critical)' }}
+                            >
+                              ${blast.blast_radius_usd?.toLocaleString()}
+                            </span>
+                            <span className="text-[11px] text-[var(--color-text-tertiary)]">
+                              {(blast.blast_radius_usd / Math.max(1, blast.root_cost_usd)).toFixed(1)}×
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[12px] text-[var(--color-text-disabled)]">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5">
                         <ChevronRight
                           size={16}
@@ -127,14 +169,14 @@ export default function ContradictionFeed() {
                     {/* Expanded detail */}
                     {isExpanded && (
                       <tr className="bg-[var(--color-surface-1)] border-b border-[var(--color-border-default)]">
-                        <td colSpan={5} className="px-6 py-5">
+                        <td colSpan={6} className="px-6 py-5">
                           <div className="grid grid-cols-2 gap-4 mb-4">
                             <ClaimCard system={c.system_a} />
                             <ClaimCard system={c.system_b} />
                           </div>
 
                           {/* Action row */}
-                          <div className="flex gap-2 mb-4">
+                          <div className="flex gap-2 mb-4 flex-wrap">
                             {!res ? (
                               <button
                                 onClick={(e) => loadResolution(c.id, e)}
@@ -168,6 +210,13 @@ export default function ContradictionFeed() {
                               <Network size={14} strokeWidth={1.5} />
                               {isLineage ? 'Hide lineage' : 'View lineage'}
                             </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenPanelId(c.id); }}
+                              className="inline-flex items-center gap-2 h-8 px-3 text-[13px] font-medium border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] text-[var(--color-text-body)] hover:bg-[var(--color-surface-3)] transition-colors"
+                            >
+                              <Target size={14} strokeWidth={1.5} />
+                              View blast radius
+                            </button>
                           </div>
 
                           {/* Resolution detail */}
@@ -189,6 +238,13 @@ export default function ContradictionFeed() {
           </table>
         )}
       </div>
+
+      {/* Slide-over Blast-Radius panel */}
+      <BlastRadiusPanel
+        data={openPanelId ? blastByContradictionId[openPanelId] : null}
+        contradiction={openPanelId ? conflicts.find(c => c.id === openPanelId) : null}
+        onClose={() => setOpenPanelId(null)}
+      />
     </div>
   );
 }

@@ -28,7 +28,7 @@ if org is None:
     raise RuntimeError(
         "demo-fitness org not found. Start the API container so it auto-seeds, "
         "or run: docker compose exec api python -m scripts.seed_org "
-        "--name 'Demo Fitness' --slug demo-fitness --preset consumer"
+        "--name 'Universal' --slug demo-fitness --preset consumer"
     )
 demo_org_id = org.id
 print(f"🏢 Scoping agents to org: demo-fitness ({demo_org_id})")
