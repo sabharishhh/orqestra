@@ -1,7 +1,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import { fetchContradictions, fetchResolution, fetchBlastRadius } from '../api';
-import ContradictionLineageTree from './ContradictionLineageTree';
 import BlastRadiusPanel from './BlastRadiusPanel';
+import CausalLineagePanel from './CausalLineagePanel';
 import { Network, Wand2, Check, ChevronRight, Inbox, Target } from 'lucide-react';
 import EstateScoreHeader from './EstateScoreHeader';
 
@@ -33,11 +33,13 @@ export default function ContradictionFeed() {
   const [resolutions, setResolutions] = useState({});
   const [loadingId, setLoadingId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [lineageId, setLineageId] = useState(null);
 
-  // Sprint 6.6: blast-radius state — eager-fetched per contradiction + slide-over panel
+  // Sprint 6.6 — blast-radius state (eager-fetched per contradiction + slide-over)
   const [blastByContradictionId, setBlastByContradictionId] = useState({});
-  const [openPanelId, setOpenPanelId] = useState(null);
+  const [openBlastId, setOpenBlastId] = useState(null);
+
+  // Sprint 6.7 — causal-lineage slide-over (replaces the old inline tree)
+  const [openLineageId, setOpenLineageId] = useState(null);
 
   // Poll for contradictions
   useEffect(() => {
@@ -76,10 +78,6 @@ export default function ContradictionFeed() {
   };
 
   const toggleExpand = (id) => setExpandedId(expandedId === id ? null : id);
-  const toggleLineage = (id, e) => {
-    e?.stopPropagation();
-    setLineageId(lineageId === id ? null : id);
-  };
 
   return (
     <div className="flex flex-col h-screen">
@@ -115,7 +113,6 @@ export default function ContradictionFeed() {
             <tbody>
               {conflicts.map(c => {
                 const isExpanded = expandedId === c.id;
-                const isLineage = lineageId === c.id;
                 const res = resolutions[c.id];
                 const blast = blastByContradictionId[c.id];
                 return (
@@ -199,19 +196,19 @@ export default function ContradictionFeed() {
                                 Resolution generated
                               </span>
                             )}
+
+                            {/* Sprint 6.7 — opens the new CausalLineagePanel slide-over */}
                             <button
-                              onClick={(e) => toggleLineage(c.id, e)}
-                              className={`inline-flex items-center gap-2 h-8 px-3 text-[13px] font-medium border border-[var(--color-border-strong)] transition-colors ${
-                                isLineage
-                                  ? 'bg-[var(--color-surface-3)] text-[var(--color-text-primary)]'
-                                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-body)] hover:bg-[var(--color-surface-3)]'
-                              }`}
+                              onClick={(e) => { e.stopPropagation(); setOpenLineageId(c.id); }}
+                              className="inline-flex items-center gap-2 h-8 px-3 text-[13px] font-medium border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] text-[var(--color-text-body)] hover:bg-[var(--color-surface-3)] transition-colors"
                             >
                               <Network size={14} strokeWidth={1.5} />
-                              {isLineage ? 'Hide lineage' : 'View lineage'}
+                              View lineage
                             </button>
+
+                            {/* Sprint 6.6 — opens the BlastRadiusPanel slide-over */}
                             <button
-                              onClick={(e) => { e.stopPropagation(); setOpenPanelId(c.id); }}
+                              onClick={(e) => { e.stopPropagation(); setOpenBlastId(c.id); }}
                               className="inline-flex items-center gap-2 h-8 px-3 text-[13px] font-medium border border-[var(--color-border-strong)] bg-[var(--color-surface-2)] text-[var(--color-text-body)] hover:bg-[var(--color-surface-3)] transition-colors"
                             >
                               <Target size={14} strokeWidth={1.5} />
@@ -222,12 +219,7 @@ export default function ContradictionFeed() {
                           {/* Resolution detail */}
                           {res && <ResolutionPanel res={res} />}
 
-                          {/* Lineage tree */}
-                          {isLineage && (
-                            <div className="mt-4 pt-4 border-t border-[var(--color-border-default)]">
-                              <ContradictionLineageTree conflict={c} />
-                            </div>
-                          )}
+                          {/* No more inline lineage tree — Sprint 6.7 moved this to a slide-over panel */}
                         </td>
                       </tr>
                     )}
@@ -239,11 +231,17 @@ export default function ContradictionFeed() {
         )}
       </div>
 
-      {/* Slide-over Blast-Radius panel */}
+      {/* Slide-over: Blast Radius (Sprint 6.6) */}
       <BlastRadiusPanel
-        data={openPanelId ? blastByContradictionId[openPanelId] : null}
-        contradiction={openPanelId ? conflicts.find(c => c.id === openPanelId) : null}
-        onClose={() => setOpenPanelId(null)}
+        data={openBlastId ? blastByContradictionId[openBlastId] : null}
+        contradiction={openBlastId ? conflicts.find(c => c.id === openBlastId) : null}
+        onClose={() => setOpenBlastId(null)}
+      />
+
+      {/* Slide-over: Causal Lineage (Sprint 6.7) */}
+      <CausalLineagePanel
+        contradiction={openLineageId ? conflicts.find(c => c.id === openLineageId) : null}
+        onClose={() => setOpenLineageId(null)}
       />
     </div>
   );
