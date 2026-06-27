@@ -1,40 +1,56 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Activity, GitCommit, Inbox, Settings, Database } from 'lucide-react';
+import { Rss, CheckSquare, Share2, Database, ChevronDown, BookOpen, Settings } from 'lucide-react';
 
-const Sidebar = () => {
-  const navClass = ({ isActive }) => 
-    `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`;
+const ORG_SLUG = 'demo-fitness'; // TODO: pull from context once org switcher is wired
 
+const navItem = ({ isActive }) =>
+  `relative flex items-center gap-3 h-10 px-4 text-[14px] font-medium transition-colors ${
+    isActive
+      ? 'bg-[var(--color-surface-2)] text-[var(--color-text-primary)] before:absolute before:left-0 before:top-0 before:h-full before:w-[2px] before:bg-[var(--color-accent)]'
+      : 'text-[var(--color-text-body)] hover:text-[var(--color-text-primary)]'
+  }`;
+
+export default function Sidebar() {
   return (
-    <div className="w-64 bg-slate-900 border-r border-slate-800 h-screen flex flex-col p-4">
-      <div className="flex items-center gap-3 mb-10 px-2">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white tracking-tighter">O</div>
-        <span className="text-xl font-bold text-white tracking-tight">Orqestra</span>
-      </div>
-      
-      <nav className="flex flex-col gap-2">
-        <NavLink to="/" className={navClass}>
-          <Activity size={20} /> Live Feed
+    <aside className="w-60 shrink-0 bg-[var(--color-surface-1)] border-r border-[var(--color-border-default)] h-screen flex flex-col">
+      {/* Org switcher */}
+      <button className="h-14 px-4 flex items-center justify-between border-b border-[var(--color-border-default)] hover:bg-[var(--color-surface-2)] transition-colors">
+        <div className="flex flex-col items-start">
+          <span className="text-[10px] font-bold tracking-[0.05em] uppercase text-[var(--color-text-tertiary)]">
+            Organization
+          </span>
+          <span className="font-mono text-[13px] text-[var(--color-text-primary)]">
+            {ORG_SLUG}
+          </span>
+        </div>
+        <ChevronDown size={16} className="text-[var(--color-text-secondary)]" />
+      </button>
+
+      {/* Primary nav */}
+      <nav className="flex-1 py-2">
+        <NavLink to="/" end className={navItem}>
+          <Rss size={18} strokeWidth={1.5} /> Feed
         </NavLink>
-        <NavLink to="/resolutions" className={navClass}>
-          <Inbox size={20} /> Resolutions
+        <NavLink to="/resolutions" className={navItem}>
+          <CheckSquare size={18} strokeWidth={1.5} /> Resolutions
         </NavLink>
-        <NavLink to="/graph" className={navClass}>
-          <GitCommit size={20} /> Topology Graph
+        <NavLink to="/graph" className={navItem}>
+          <Share2 size={18} strokeWidth={1.5} /> Graph
         </NavLink>
-        <NavLink to="/explorer" className={navClass}>
-          <Database size={20} /> Data Explorer
+        <NavLink to="/explorer" className={navItem}>
+          <Database size={18} strokeWidth={1.5} /> Explorer
         </NavLink>
       </nav>
 
-      <div className="mt-auto">
-        <button className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-300 transition-colors w-full">
-          <Settings size={20} /> Settings
+      {/* Footer */}
+      <div className="border-t border-[var(--color-border-default)] py-2">
+        <button className="flex items-center gap-3 h-10 px-4 w-full text-[14px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-2)] transition-colors">
+          <BookOpen size={18} strokeWidth={1.5} /> Docs
+        </button>
+        <button className="flex items-center gap-3 h-10 px-4 w-full text-[14px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-2)] transition-colors">
+          <Settings size={18} strokeWidth={1.5} /> Settings
         </button>
       </div>
-    </div>
+    </aside>
   );
-};
-
-export default Sidebar;
+}

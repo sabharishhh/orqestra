@@ -1,1 +1,71 @@
 @import "tailwindcss";
+
+@theme {
+  /* surfaces */
+  --color-surface-0: #0F0F0F;
+  --color-surface-1: #1A1A1A;
+  --color-surface-2: #272727;
+  --color-surface-3: #333333;
+
+  /* accent */
+  --color-accent: #8DB2F5;
+  --color-accent-hover: #A8C3F8;
+  --color-accent-pressed: #6E96E0;
+
+  /* severity */
+  --color-sev-critical: #F87171;
+  --color-sev-high: #FB923C;
+  --color-sev-medium: #FBBF24;
+  --color-sev-low: #9CA3AF;
+  --color-ok: #4ADE80;
+
+  /* text */
+  --color-text-primary: #FFFFFF;
+  --color-text-body: #E4E4E7;
+  --color-text-secondary: #A1A1AA;
+  --color-text-tertiary: #71717A;
+  --color-text-disabled: #52525B;
+
+  /* borders */
+  --color-border-default: #272727;
+  --color-border-strong: #3F3F46;
+  --color-border-accent: #8DB2F5;
+
+  /* type */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* radius — sharp */
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+}
+
+@layer base {
+  html, body, #root {
+    background: var(--color-surface-0);
+    color: var(--color-text-body);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border-strong); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* focus ring default */
+  :focus-visible {
+    outline: 2px solid var(--color-border-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Inter + JetBrains Mono from Google Fonts — add to index.html <head>:
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+*/

@@ -2,7 +2,6 @@ import logging
 from celery import chain
 from core.celery_app import celery_app
 
-# Import our microservices & worker logic
 from services.pii_scrubber import scrub_pii
 from workers.claim_extractor import run_extraction
 from workers.sccg_writer import write_claims_to_sccg
@@ -13,14 +12,21 @@ from workers.alert_dispatcher import send_slack_alert
 
 logger = logging.getLogger(__name__)
 
-@celery_app.task(bind=True, max_retries=3)
-def process_sample_task(self, system_id: str, text: str, metadata: dict = None):
-    """
-    The master entry point for the Async Pipeline.
-    """
-    logger.info(f"Initiating pipeline for System [{system_id}]")
 
-    # F5.1 Guardrail: PII Scrubbing happens instantly before any downstream logic
+@celery_app.task(bind=True, max_retries=3)
+def process_sample_task(
+    self,
+    system_id: str,
+    text: str,
+    metadata: dict = None,
+    parent_claim_id: str = None,
+):
+    """Master entry point. PII-scrubs, then chains the pipeline."""
+    logger.info(
+        f"Initiating pipeline for System [{system_id}]"
+        + (f" with parent_claim_id={parent_claim_id}" if parent_claim_id else "")
+    )
+
     from core.database import SessionLocal
     from models.database import System
     db = SessionLocal()
@@ -32,59 +38,53 @@ def process_sample_task(self, system_id: str, text: str, metadata: dict = None):
 
     safe_text = scrub_pii(text, org_id=org_id_for_scrub)
 
-    # F5.2 Guardrail: Celery Chain execution
     workflow = chain(
-        extract_and_embed_task.s(system_id, safe_text, metadata or {}),
-        write_sccg_task.s(system_id),
+        extract_and_embed_task.s(system_id, safe_text, metadata or {}, parent_claim_id),
+        write_sccg_task.s(system_id, parent_claim_id),
         update_obg_task.s(system_id),
-        detect_contradictions_task.s(system_id)
+        detect_contradictions_task.s(system_id),
     )
-    
     workflow.apply_async()
     return {"status": "workflow_chained"}
 
 
-@celery_app.task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True)
-def extract_and_embed_task(self, system_id: str, text: str, metadata: dict):
-    """Worker 1: Extracts SPO triples and embeds them."""
-    try:
-        embedded_claims = run_extraction(text, system_id)
-        return embedded_claims 
-    except Exception as exc:
-        # F5.3 Compliance: Route terminal failures to Dead Letter Queue
-        logger.error(f"Extraction failed: {exc}. Routing to DLQ.")
-        dlq_handler.apply_async(args=[{"system_id": system_id, "text": text}, str(exc)], queue='dead_letters')
-        raise self.retry(exc=exc)
+@celery_app.task(bind=True, max_retries=3, queue='claim_extraction')
+def extract_and_embed_task(self, system_id: str, text: str, metadata: dict, parent_claim_id: str = None):
+    """Worker 1: extract SPO claims + embeddings via OpenAI."""
+    embedded = run_extraction(text, system_id)
+    return {"claims": embedded, "parent_claim_id": parent_claim_id, "metadata": metadata or {}}
 
 
-@celery_app.task(bind=True)
-def write_sccg_task(self, embedded_claims: list, system_id: str):
-    """Worker 2: Commits embedded claims to the Sparse Causal Claim Graph."""
-    claim_ids = write_claims_to_sccg(system_id, embedded_claims)
-    return claim_ids
+@celery_app.task(bind=True, max_retries=3)
+def write_sccg_task(self, prev_result: dict, system_id: str, parent_claim_id: str = None):
+    """Worker 2: persist claims to SCCG with optional cross-agent parent linkage."""
+    if not isinstance(prev_result, dict):
+        logger.warning(f"write_sccg_task got non-dict prev_result: {type(prev_result)}")
+        return []
+    claims = prev_result.get("claims", [])
+    # Prefer explicit kwarg, fall back to value tunneled from extract step
+    effective_parent = parent_claim_id or prev_result.get("parent_claim_id")
+    return write_claims_to_sccg(system_id, claims, parent_claim_id=effective_parent)
 
 
 @celery_app.task(bind=True)
 def update_obg_task(self, claim_ids: list, system_id: str):
-    """Worker 3: Updates the running centroids in the Organizational Belief Graph."""
-    updated_entities = update_entity_centroids(system_id, claim_ids)
-    return updated_entities 
+    """Worker 3: Update OBG centroids."""
+    return update_entity_centroids(system_id, claim_ids)
 
 
 @celery_app.task(bind=True)
 def detect_contradictions_task(self, updated_entities: list, system_id: str):
-    """Worker 4: Executes the 5-Level Funnel against newly updated entity spaces."""
+    """Worker 4: 5-Level Funnel."""
     contradiction_ids = run_5_level_funnel(system_id, updated_entities)
-    
     for cid in contradiction_ids:
         resolve_contradiction_task.delay(cid)
-        
     return {"contradictions_found": len(contradiction_ids)}
 
 
 @celery_app.task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=True)
 def resolve_contradiction_task(self, contradiction_id: str):
-    """Worker 5: The explainer agent."""
+    """Worker 5: Explainer agent."""
     try:
         generate_resolution(contradiction_id)
         return {"status": "resolved", "id": contradiction_id}
@@ -96,25 +96,21 @@ def resolve_contradiction_task(self, contradiction_id: str):
 
 @celery_app.task(bind=True, max_retries=3)
 def dispatch_alert_task(self, resolution_id: str):
-    """Celery wrapper for the Alert Dispatcher."""
     send_slack_alert(resolution_id)
     return {"status": "alert_dispatched", "resolution_id": resolution_id}
 
 
 @celery_app.task(queue='dead_letters')
 def dlq_handler(failed_payload: dict, error_msg: str):
-    """F5.3 Compliance: Dead Letter Queue for persistent failures."""
     logger.critical(f"DLQ CAUGHT: {error_msg} | Payload: {failed_payload}")
     return {"status": "dead_letter_logged"}
 
 
 @celery_app.task
 def trigger_all_coherence_scores():
-    """Wakes up periodically via Celery Beat to calculate estate health metrics."""
     from core.database import SessionLocal
     from models.database import System
     from workers.coherence_scorer import update_coherence_score
-    
     db = SessionLocal()
     try:
         systems = db.query(System).all()
@@ -126,6 +122,5 @@ def trigger_all_coherence_scores():
 
 @celery_app.task
 def trigger_finetune_task(entity_type: str):
-    """Triggered by feedback_collector when human validation thresholds are met."""
     logger.info(f"🚀 REINFORCEMENT LEARNING KICKOFF: Fine-tuning DeBERTa for domain: {entity_type}")
     return {"status": "finetune_started", "domain": entity_type}
