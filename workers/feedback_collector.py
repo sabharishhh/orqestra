@@ -1,10 +1,11 @@
 import logging
+from observability import get_logger
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import Contradiction, Resolution, ContrastiveFeedback, Entity
 from core.celery_app import celery_app
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @celery_app.task(queue="claim_extraction")
 def record_feedback(proposal_id: str, action: str):

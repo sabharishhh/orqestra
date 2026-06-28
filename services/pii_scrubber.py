@@ -1,5 +1,6 @@
 import re
 import logging
+from observability import get_logger
 from typing import Optional, Union, Set
 from uuid import UUID
 
@@ -18,7 +19,7 @@ from core.database import SessionLocal
 from models.database import PiiAllowlistToken
 from services.config_loader import _redis, CACHE_TTL_SECONDS
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =====================================================

@@ -1,5 +1,6 @@
 import math
 import logging
+from observability import get_logger
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -16,7 +17,7 @@ from models.database import (
 )
 from services.config_loader import get_org_config
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _resolve_org_id(db: Session, system_id: str) -> str:

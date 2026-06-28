@@ -1,6 +1,7 @@
 import functools
 from typing import Any, Dict, Optional
 from .client import get_logger
+from observability import get_logger
 
 class OrquestraIngestor:
     """Manual context logger for systems that don't want wrapper injection."""
@@ -25,7 +26,7 @@ def on_write(text: str, metadata: dict = None, vector_clock: dict = None):
     client = get_logger()
     if not client:
         import logging
-        logging.getLogger("Orqestra.SDK").warning("SDK not initialized. Call orqestra.init() first.")
+        get_logger("Orqestra.SDK").warning("SDK not initialized. Call orqestra.init() first.")
         return
 
     payload = {

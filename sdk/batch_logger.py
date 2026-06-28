@@ -4,9 +4,10 @@ import atexit
 import threading
 import httpx
 import logging
+from observability import get_logger
 from typing import Dict, Any
 
-logger = logging.getLogger("Orqestra.SDK")
+logger = get_logger("Orqestra.SDK")
 
 # F4.3 Compliance: Disk-backed buffer for crash resilience
 BUFFER_FILE = os.environ.get("ORQESTRA_BUFFER_PATH", "/tmp/.orqestra_telemetry.jsonl")

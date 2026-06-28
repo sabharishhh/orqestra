@@ -17,6 +17,7 @@ contradictions, OBG) is never touched.
 """
 import argparse
 import logging
+from observability import get_logger
 import sys
 from pathlib import Path
 from typing import Optional
@@ -36,7 +37,7 @@ from models.database import (
 )
 
 logging.basicConfig(level=logging.INFO, format="[seed_org] %(message)s")
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 PRESETS_DIR = Path(__file__).resolve().parent.parent / "presets"
 

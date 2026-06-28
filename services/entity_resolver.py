@@ -16,6 +16,7 @@ orphans into candidates for promotion to canonical.
 """
 import json
 import logging
+from observability import get_logger
 from typing import Optional, Union
 from uuid import UUID
 
@@ -30,7 +31,7 @@ from services.config_loader import (
     CACHE_TTL_SECONDS,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _alias_map_cache_key(org_id: str) -> str:

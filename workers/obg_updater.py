@@ -1,11 +1,12 @@
 import logging
+from observability import get_logger
 import numpy as np
 from typing import List
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import Claim, EntityBeliefState, System
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _resolve_org_id(db: Session, system_id: str) -> str:

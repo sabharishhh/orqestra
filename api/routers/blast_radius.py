@@ -24,6 +24,7 @@ enumerable so cross-tenant probing is impractical. Re-add verify_api_key
 when the dashboard introduces real login.
 """
 import logging
+from observability import get_logger
 from typing import Optional
 from uuid import UUID
 
@@ -39,7 +40,7 @@ from models.database import (
 )
 from services.config_loader import get_org_config
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter()
 
 

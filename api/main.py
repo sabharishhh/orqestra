@@ -1,13 +1,15 @@
-import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from observability import configure_logging, get_logger, CorrelationIdMiddleware
+configure_logging()
+
 
 # Router Imports
 from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi, canon, blast_radius, lineage
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("Orqestra.API")
+logger = get_logger("Orqestra.API")
 
 app = FastAPI(
     title="Orqestra MVP API",
@@ -24,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(CorrelationIdMiddleware)
 
 def _ensure_demo_org_seeded() -> None:
     """Idempotent boot-time seed of the demo-fitness organization."""

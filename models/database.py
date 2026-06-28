@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, Float, Integer, ForeignKey, DateTime, Tex
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 from pgvector.sqlalchemy import Vector
+from sqlalchemy.orm import relationship 
 
 Base = declarative_base()
 
@@ -18,6 +19,7 @@ class System(Base):
     description = Column(Text)
     api_key_hash = Column(String(64), unique=True) 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    organization = relationship("Organization", lazy="joined")
 
 class Entity(Base):
     __tablename__ = 'entities'

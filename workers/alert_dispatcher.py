@@ -2,17 +2,18 @@ import os
 import httpx
 from dotenv import load_dotenv
 import logging
+from observability import get_logger
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import Contradiction, Claim, Resolution, System
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # In production, this would be your real Slack/Discord Webhook URL
 # For testing, you can grab a free one at https://webhook.site/
-WEBHOOK_URL = os.environ.get("ORQESTRA_SLACK_WEBHOOK_URL", "https://webhook.site/db8392b3-f128-4887-b854-6ded1f0a2a7c")
+WEBHOOK_URL = os.environ.get("ORQESTRA_SLACK_WEBHOOK_URL", "https://webhook.site/03d57e80-62ea-4103-a5e1-3ae04cbc91db")
 
 def send_slack_alert(resolution_id: str):
     """Worker 6 Phase: Dispatches high-severity alerts to external systems."""

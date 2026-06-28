@@ -1,5 +1,6 @@
 import os
 from .batch_logger import BackgroundTelemetryLogger
+from observability import get_logger
 
 # Global singleton logger
 _telemetry_logger = None

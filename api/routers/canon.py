@@ -19,6 +19,7 @@ pipeline; Canon never mutates it. Future sprints can add write-back
 (agents propose updates) and enforcement (block deviant outputs).
 """
 import logging
+from observability import get_logger
 from typing import Optional
 
 import numpy as np
@@ -36,7 +37,7 @@ from models.database import (
 )
 from services.entity_resolver import resolve_entity_hint
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter()
 
 

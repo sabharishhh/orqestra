@@ -57,6 +57,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ORQESTRA_NLI_BACKEND=openai
+      - ORQESTRA_ENV=prod
+      - ORQESTRA_LOG_LEVEL=INFO
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +77,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ORQESTRA_NLI_BACKEND=openai
+      - ORQESTRA_ENV=prod
+      - ORQESTRA_LOG_LEVEL=INFO
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,6 +97,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ORQESTRA_NLI_BACKEND=openai
+      - ORQESTRA_ENV=prod
+      - ORQESTRA_LOG_LEVEL=INFO
     depends_on:
       postgres:
         condition: service_healthy
@@ -110,6 +116,8 @@ services:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
       - ORQESTRA_NLI_BACKEND=openai
+      - ORQESTRA_ENV=prod
+      - ORQESTRA_LOG_LEVEL=INFO 
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,6 +135,8 @@ services:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/orqestra
       - REDIS_URL=redis://redis:6379/0
       - ORQESTRA_NLI_BACKEND=openai
+      - ORQESTRA_ENV=prod
+      - ORQESTRA_LOG_LEVEL=INFO
     depends_on:
       postgres:
         condition: service_healthy

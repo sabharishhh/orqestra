@@ -1,8 +1,9 @@
 import logging
+from observability import get_logger
 from sqlalchemy.orm import Session
 from models.database import Claim
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def compute_lca(db: Session, claim_a_id: str, claim_b_id: str) -> dict:
     """

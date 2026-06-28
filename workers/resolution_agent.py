@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from observability import get_logger
 
 import httpx
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from models.database import Contradiction, Claim, Resolution, System
 from openai import OpenAI, APIConnectionError, RateLimitError, APITimeoutError
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Severity tiers that warrant an immediate alert dispatch (Slack/email/etc).

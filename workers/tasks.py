@@ -1,4 +1,5 @@
 import logging
+from observability import get_logger
 from celery import chain
 from core.celery_app import celery_app
 
@@ -10,7 +11,7 @@ from workers.contradiction_detector import run_5_level_funnel
 from workers.resolution_agent import generate_resolution
 from workers.alert_dispatcher import send_slack_alert
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @celery_app.task(bind=True, max_retries=3)
@@ -118,7 +119,6 @@ def trigger_all_coherence_scores():
             update_coherence_score.delay(str(sys.id))
     finally:
         db.close()
-
 
 @celery_app.task
 def trigger_finetune_task(entity_type: str):

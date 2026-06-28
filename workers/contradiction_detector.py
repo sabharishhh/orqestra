@@ -10,6 +10,7 @@ coefficients are now per-org config instead of hardcoded constants.
 """
 import os
 import logging
+from observability import get_logger
 import dspy
 import numpy as np
 from datetime import datetime, timezone, timedelta
@@ -23,7 +24,7 @@ from services.config_loader import get_org_config
 from services.severity_scorer import calculate_severity_and_cost
 from services.threshold_service import get_thresholds_for_entity
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ==========================================

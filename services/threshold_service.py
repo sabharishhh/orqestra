@@ -17,6 +17,7 @@ Cached aggressively because the detector calls this on every claim.
 """
 import json
 import logging
+from observability import get_logger
 from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
@@ -27,7 +28,7 @@ from core.database import SessionLocal
 from models.database import CanonicalEntity, CategoryThreshold
 from services.config_loader import get_org_config, _redis, CACHE_TTL_SECONDS
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =====================================================

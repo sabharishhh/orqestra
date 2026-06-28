@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from core.celery_app import celery_app
 from core.database import SessionLocal
 from models.database import System, Claim, Contradiction, Organization
+from observability import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CANARY_ORG_SLUG = "canary-probe"
 CANARY_ORG_NAME = "Canary Probe"

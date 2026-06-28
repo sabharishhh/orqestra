@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from observability import get_logger
 from typing import List, Dict, Any
 
 import httpx
@@ -12,7 +13,7 @@ from core.database import SessionLocal
 from models.database import CanonicalEntity, System
 from services.config_loader import _redis, CACHE_TTL_SECONDS
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =====================================================

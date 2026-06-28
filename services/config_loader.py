@@ -14,6 +14,7 @@ pays a single millisecond-scale Redis GET instead of a DB query per stage.
 import os
 import json
 import logging
+from observability import get_logger
 from dataclasses import dataclass, asdict
 from typing import Optional, Union
 from uuid import UUID
@@ -24,7 +25,7 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import DetectionConfig, Organization
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CACHE_TTL_SECONDS = 300  # 5 minutes — admin edits propagate quickly enough
 _redis = Redis.from_url(os.environ["REDIS_URL"], decode_responses=True)

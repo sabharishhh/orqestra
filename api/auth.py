@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import System
+from observability.context import bind_tenant 
 
 # Enforce Bearer token standard per the architectural spec
 security = HTTPBearer()
@@ -18,7 +19,7 @@ def get_db():
     finally:
         db.close()
 
-def verify_api_key(
+async def verify_api_key(
     credentials: HTTPAuthorizationCredentials = Security(security),
     db: Session = Depends(get_db)
 ):
@@ -46,7 +47,12 @@ def verify_api_key(
             detail="Invalid API Key or System not registered.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+    
+    bind_tenant(
+        tenant_id=str(system.org_id),
+        org_slug=system.organization.slug,
+    )
+    
     # Return the full system object to scope all downstream actions
     return system
 

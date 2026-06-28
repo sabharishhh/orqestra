@@ -11,11 +11,12 @@ fallback. This service treats both as first-class and picks at runtime.
 import os
 import json
 import logging
+from observability import get_logger
 import httpx
 from openai import OpenAI, APIConnectionError, RateLimitError, APITimeoutError
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 NLI_BACKEND = os.environ.get("ORQESTRA_NLI_BACKEND", "openai").lower()
 LOCAL_MODEL_NAME = os.environ.get(

@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from observability import get_logger
 import numpy as np
 from datetime import datetime, timedelta, timezone
 from itertools import combinations
@@ -14,7 +15,7 @@ from models.database import Claim, InductionCandidate, CanonicalEntity, Organiza
 from services.config_loader import get_org_config
 from openai import OpenAI
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =====================================================

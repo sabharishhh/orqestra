@@ -13,6 +13,7 @@ are computed server-side via BFS depth.
 Read-only. Tenant-scoped via API key → System → org_id.
 """
 import logging
+from observability import get_logger
 from collections import defaultdict
 from typing import Optional
 from uuid import UUID
@@ -25,7 +26,7 @@ from core.database import get_db
 from models.database import Contradiction, Claim, System
 from services.lca_computer import compute_lca
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter()
 
 

@@ -1,4 +1,5 @@
 import logging
+from observability import get_logger
 from typing import List, Dict, Optional
 from uuid import UUID
 
@@ -9,7 +10,7 @@ from models.database import Claim, System
 from services.content_hasher import normalize_and_hash
 from services.entity_resolver import resolve_entity_hint
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _resolve_org_id(db: Session, system_id: str) -> str:
