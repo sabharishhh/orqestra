@@ -7,6 +7,7 @@ configure_logging()
 
 # Router Imports
 from api.routers import systems, samples, admin, contradictions, entities, graph, resolutions, roi, canon, blast_radius, lineage
+from api.routers import metrics as metrics_router
 
 # Setup logging
 logger = get_logger("Orqestra.API")
@@ -85,6 +86,8 @@ app.include_router(entities.router, prefix="/entities", tags=["OBG Entities"])
 app.include_router(graph.router, prefix="/graph", tags=["SCCG Visualizer"])
 app.include_router(roi.router, prefix="/roi", tags=["Financial ROI"])
 app.include_router(canon.router, prefix="/canon", tags=["Canon"])
+app.include_router(metrics_router.router)
+
 
 logger.info("Orqestra API Core Initialized. Standing by for Swarm Telemetry.")
 

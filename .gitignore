@@ -215,4 +215,10 @@ marimo/_lsp/
 __marimo__/
 
 # Streamlit
-.streamlit/secrets.toml
+.streamlit/secrets.tomldemo/.env.demo
+demo/.env.*
+demo/.env.fitness_agent
+demo/.env.medical_agent
+demo/.env.nutrition_agent
+demo/.env.recovery_agent
+demo/.env.budget_agent

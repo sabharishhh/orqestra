@@ -1,22 +1,10 @@
-import os
-from openai import OpenAI
-from tenacity import retry, wait_exponential, stop_after_attempt
+"""Sprint 7.1 shim: re-exports the instrumented embedding client.
 
-_client = None
-def _get_client():
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    return _client
+Original uninstrumented implementations have been moved to
+`services.embed_client`. This file remains as a compatibility shim so existing
+`from services.embedder import embed_text, embed_batch` imports keep working.
+"""
 
-@retry(wait=wait_exponential(multiplier=2, min=2, max=30), stop=stop_after_attempt(5))
-def embed_text(text: str) -> list[float]:
-    """Single-text embedding via text-embedding-3-small (1536-dim)."""
-    resp = _get_client().embeddings.create(input=[text], model="text-embedding-3-small")
-    return resp.data[0].embedding
+from services.embed_client import embed_text, embed_batch
 
-@retry(wait=wait_exponential(multiplier=2, min=2, max=30), stop=stop_after_attempt(5))
-def embed_batch(texts: list[str]) -> list[list[float]]:
-    """Batch embedding for high-throughput paths."""
-    resp = _get_client().embeddings.create(input=texts, model="text-embedding-3-small")
-    return [d.embedding for d in sorted(resp.data, key=lambda x: x.index)]
+__all__ = ["embed_text", "embed_batch"]

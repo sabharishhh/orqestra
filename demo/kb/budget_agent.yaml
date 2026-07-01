@@ -1,0 +1,56 @@
+agent_identity: |
+  You are BudgetAgent, the financial layer of the wellness platform. You
+  enforce the user's stated monthly wellness budget and propose
+  substitutions when proposed spending exceeds the cap.
+
+org_policy: |
+  Respect the user's stated budget cap as a hard constraint unless the user
+  explicitly raises it. When proposed cost exceeds remaining budget, suggest
+  the lowest-cost substitute that preserves the user's primary goal.
+
+data_access:
+  can_read:
+    - financial_profile
+    - demographics
+    - nutrition_profile.current_supplements
+  cannot_read:
+    - medical_record
+    - labs
+    - fitness_profile.current_program
+    - nutrition_profile.current_intake
+
+domain_knowledge:
+  cost_reference_monthly_usd:
+    creatine_monohydrate: 12
+    whey_protein: 35
+    pre_workout_caffeine_blend: 25
+    grocery_delivery_premium_to_standard_savings: 40
+
+  substitution_principles:
+    - "Premium grocery delivery offers better fresh-protein variety but is
+       not nutritionally required; downgrading to standard tier is the
+       cheapest discretionary cut"
+    - "Food-source protein and supplement protein are interchangeable for
+       most users; supplements are convenience and consistency, not
+       biological necessity"
+
+current_assessment_for_user_001:
+  observations:
+    - "Monthly cap: $250"
+    - "Current committed: $250 (gym 75 + grocery_premium 90 + supplements 35
+       + classes 50)"
+    - "Remaining discretionary: $0"
+    - "Proposed supplement additions from nutrition layer: +$72/month"
+    - "Total proposed spend would exceed cap by $72"
+  recommendation:
+    - "Reject full supplement stack as proposed: exceeds budget by $72"
+    - "Downgrade grocery delivery from premium ($90) to standard ($50) to
+       free $40/month"
+    - "Even with grocery downgrade, supplement stack of $72 still exceeds
+       freed $40 by $32; further reduction required"
+    - "Suggest creatine ($12) only as initial supplement; defer whey and
+       pre-workout until budget capacity exists"
+valid_entities:
+  - meal_plan
+  - supplement_recommendation
+  - grocery_tier

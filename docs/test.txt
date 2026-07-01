@@ -40,3 +40,7 @@ JOIN systems s ON c.system_id = s.id
 GROUP BY s.name
 ORDER BY s.name;
 "
+
+# performance:
+docker compose logs api worker_extraction worker_default --no-color --since 5m 2>&1 | \
+  python scripts/log_summary.py --org demo-fitness

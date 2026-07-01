@@ -19,7 +19,7 @@ pipeline; Canon never mutates it. Future sprints can add write-back
 (agents propose updates) and enforcement (block deviant outputs).
 """
 import logging
-from observability import get_logger
+from observability import get_logger, timed
 from typing import Optional
 
 import numpy as np
@@ -113,11 +113,13 @@ def _nearest_claim_text(
         ORDER BY distance ASC
         LIMIT 1
     """)
-    row = db.execute(query, {
-        "org_id": org_id,
-        "entity": canonical_name,
-        "emb": str(target_centroid.tolist()),
-    }).first()
+    with timed("db.query", query_name="canon.nearest_claim") as ctx:
+        row = db.execute(query, {
+            "org_id": org_id,
+            "entity": canonical_name,
+            "emb": str(target_centroid.tolist()),
+        }).first()
+        ctx["row_count"] = 1 if row else 0
 
     if row is None:
         return None
@@ -157,15 +159,17 @@ def resolve_canon(
     canonical = resolve_entity_hint(org_id=org_id, raw_hint=entity, embedding=None, db=db)
 
     # Pull all per-system belief states for this org/entity
-    beliefs = (
-        db.query(EntityBeliefState)
-          .filter(
-              EntityBeliefState.org_id == org_id,
-              EntityBeliefState.entity_name == canonical,
-              EntityBeliefState.sample_count >= 1,
-          )
-          .all()
-    )
+    with timed("db.query", query_name="canon.belief_states") as ctx:
+        beliefs = (
+            db.query(EntityBeliefState)
+              .filter(
+                  EntityBeliefState.org_id == org_id,
+                  EntityBeliefState.entity_name == canonical,
+                  EntityBeliefState.sample_count >= 1,
+              )
+              .all()
+        )
+        ctx["row_count"] = len(beliefs)
 
     if not beliefs:
         # We know about the entity (it canonicalized) but nobody's asserted
@@ -208,11 +212,13 @@ def resolve_canon(
 
     # System provenance — which agents have touched this entity
     source_system_ids = list({str(b.system_id) for b in beliefs})
-    source_systems = (
-        db.query(System.id, System.name)
-          .filter(System.id.in_(source_system_ids))
-          .all()
-    )
+    with timed("db.query", query_name="canon.source_systems") as ctx:
+        source_systems = (
+            db.query(System.id, System.name)
+              .filter(System.id.in_(source_system_ids))
+              .all()
+        )
+        ctx["row_count"] = len(source_systems)
     source_payload = [
         {"system_id": str(s.id), "system_name": s.name}
         for s in source_systems
@@ -263,33 +269,37 @@ def list_canon(
     org_id = str(system.org_id)
 
     # Pull the full canonical vocabulary for the org
-    entities = (
-        db.query(CanonicalEntity)
-          .filter(CanonicalEntity.org_id == org_id)
-          .order_by(CanonicalEntity.canonical_name)
-          .all()
-    )
+    with timed("db.query", query_name="canon.list_entities") as ctx:
+        entities = (
+            db.query(CanonicalEntity)
+              .filter(CanonicalEntity.org_id == org_id)
+              .order_by(CanonicalEntity.canonical_name)
+              .all()
+        )
+        ctx["row_count"] = len(entities)
 
     if not entities:
         return {"org_id": org_id, "entities": []}
 
     # One aggregated row per entity, joined to OBG totals
-    rows = db.execute(sql_text("""
-        SELECT
-            ce.canonical_name,
-            ce.category,
-            ce.severity_tier,
-            COALESCE(SUM(obg.sample_count), 0) AS total_samples,
-            COUNT(DISTINCT obg.system_id)       AS system_count,
-            COALESCE(AVG(obg.confidence), 0.0)  AS avg_confidence
-        FROM canonical_entities ce
-        LEFT JOIN entity_belief_states obg
-            ON obg.org_id = ce.org_id
-           AND obg.entity_name = ce.canonical_name
-        WHERE ce.org_id = :org_id
-        GROUP BY ce.canonical_name, ce.category, ce.severity_tier
-        ORDER BY ce.canonical_name
-    """), {"org_id": org_id}).all()
+    with timed("db.query", query_name="canon.list_aggregate") as ctx:
+        rows = db.execute(sql_text("""
+            SELECT
+                ce.canonical_name,
+                ce.category,
+                ce.severity_tier,
+                COALESCE(SUM(obg.sample_count), 0) AS total_samples,
+                COUNT(DISTINCT obg.system_id)       AS system_count,
+                COALESCE(AVG(obg.confidence), 0.0)  AS avg_confidence
+            FROM canonical_entities ce
+            LEFT JOIN entity_belief_states obg
+                ON obg.org_id = ce.org_id
+               AND obg.entity_name = ce.canonical_name
+            WHERE ce.org_id = :org_id
+            GROUP BY ce.canonical_name, ce.category, ce.severity_tier
+            ORDER BY ce.canonical_name
+        """), {"org_id": org_id}).all()
+        ctx["row_count"] = len(rows)
 
     payload = []
     for r in rows:

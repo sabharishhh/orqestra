@@ -93,6 +93,10 @@ def emit_task_completed(task_id=None, task=None, state=None, **kwargs):
         state=state,
         duration_ms=duration_ms,
     )
+    if duration_ms is not None:
+        from observability import metrics
+        task_name = task.name if task else "unknown"
+        metrics.observe_celery_task(task_name, state, duration_ms / 1000.0)
     structlog.contextvars.clear_contextvars()
     clear_tenant()
     clear_claim()

@@ -1,0 +1,72 @@
+# user_profile.yaml
+subject_id: user-001
+
+demographics:
+  age: 34
+  sex: female
+  height_cm: 168
+  weight_kg: 72
+
+fitness_profile:
+  experience_level: intermediate
+  goal: "build strength, return to pre-injury performance"
+  current_program:
+    frequency_per_week: 4
+    schedule: "Mon/Tue/Thu/Fri, 6am-7am"
+    block_focus: "lower-body hypertrophy + upper-body strength"
+    week_in_block: 8
+  strength_assessments:
+    pre_injury_2025_04:
+      squat_1rm_kg: 95
+      deadlift_1rm_kg: 120
+      bench_1rm_kg: 55
+    current_2026_06:
+      squat_1rm_kg: 80   # 84% recovery
+      deadlift_1rm_kg: 105
+      bench_1rm_kg: 55
+  wearable_last_14_days:
+    avg_hrv_ms: 38           # baseline was 47, declining
+    avg_resting_hr_bpm: 64   # baseline 58
+    avg_sleep_hours: 6.8     # baseline 7.5
+    avg_steps: 8200
+
+medical_record:
+  diagnoses:
+    - condition: "right knee partial medial meniscus tear"
+      diagnosed: "2025-08-15"
+      management: "conservative, no surgery"
+      rehab_completed: "2026-02-10"
+    - condition: "stage 1 hypertension"
+      diagnosed: "2026-01-22"
+      current_avg_bp: "131/85"
+  labs_2026_05_12:
+    ldl_mg_dl: 142    # borderline-high
+    hdl_mg_dl: 52
+    glucose_mg_dl: 94
+    creatinine: 0.9
+    egfr: 92
+  clinical_notes:
+    - date: "2026-02-10"
+      provider: "orthopedic"
+      note: "Avoid high-impact axial loading on right knee for minimum 9 months post-rehab. Earliest safe return to heavy bilateral compound lifts: November 2026."
+    - date: "2026-01-22"
+      provider: "primary_care"
+      note: "Stage 1 HTN. Cardio 150 min/week. Pre-workout caffeine <=100mg. Sodium <2300mg/day."
+
+nutrition_profile:
+  current_intake:
+    daily_calories: 1850
+    daily_protein_g: 95
+    daily_carb_g: 210
+    daily_fat_g: 75
+  preferences: "omnivore, no restrictions"
+  current_supplements: ["multivitamin", "vitamin D 2000IU"]
+
+financial_profile:
+  monthly_wellness_budget_usd: 250
+  current_allocation:
+    gym: 75
+    grocery_premium: 90
+    supplements: 35
+    classes: 50
+  remaining_discretionary: 0

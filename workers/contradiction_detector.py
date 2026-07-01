@@ -7,10 +7,12 @@ Level 1 vector clock concurrency, Level 3 HNSW neighbor search, Level 4
 NLI classification, Level 5 DSPy apex judge — is unchanged. Only the
 thresholds, NLI floors, dedup windows, severity buckets, and cost
 coefficients are now per-org config instead of hardcoded constants.
+
+Sprint 7.1: per-level timing instrumentation via observability.timed.
 """
 import os
 import logging
-from observability import get_logger
+from observability import get_logger, timed
 import dspy
 import numpy as np
 from datetime import datetime, timezone, timedelta
@@ -227,51 +229,69 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 # --- LEVEL 0: OBG CENTROID VARIANCE ---
                 # Threshold is per-category (e.g. consumer=0.40, clinical=0.25)
                 # instead of the previous hardcoded 0.35.
-                other_obgs = db.query(EntityBeliefState).filter(
-                    EntityBeliefState.org_id == org_id,
-                    EntityBeliefState.entity_name == new_claim.entity_hint,
-                    EntityBeliefState.system_id != system_id
-                ).all()
+                with timed("detection.level.completed", funnel_level=0, claim_id=str(new_claim.id)) as ctx:
+                    other_obgs = db.query(EntityBeliefState).filter(
+                        EntityBeliefState.org_id == org_id,
+                        EntityBeliefState.entity_name == new_claim.entity_hint,
+                        EntityBeliefState.system_id != system_id
+                    ).all()
+                    ctx["candidates"] = len(other_obgs)
 
-                if other_obgs:
-                    diverges = False
-                    for obg in other_obgs:
-                        if obg.sample_count < cfg.bootstrap_min_samples:
-                            continue
-                        dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
-                        if dist > thresholds.level_0_cosine:
-                            diverges = True
-                            break
+                    level_0_dropped = False
+                    if other_obgs:
+                        diverges = False
+                        for obg in other_obgs:
+                            if obg.sample_count < cfg.bootstrap_min_samples:
+                                continue
+                            dist = calculate_cosine_distance(new_claim.embedding, obg.centroid_embedding)
+                            if dist > thresholds.level_0_cosine:
+                                diverges = True
+                                break
 
-                    if not diverges:
-                        logger.info(
-                            f"LEVEL 0: Claim does not diverge (>{thresholds.level_0_cosine}) "
-                            f"from any other system's OBG for '{new_claim.entity_hint}'. Dropped."
-                        )
-                        continue
+                        if not diverges:
+                            ctx["outcome"] = "no_match"
+                            level_0_dropped = True
+                        else:
+                            ctx["outcome"] = "escalated"
+                    else:
+                        ctx["outcome"] = "no_candidates"
+
+                if level_0_dropped:
+                    logger.info(
+                        f"LEVEL 0: Claim does not diverge (>{thresholds.level_0_cosine}) "
+                        f"from any other system's OBG for '{new_claim.entity_hint}'. Dropped."
+                    )
+                    continue
 
                 # --- LEVEL 1: VECTOR CLOCK CAUSALITY ---
-                concurrent_claims = []
-                for hist in all_other_claims:
-                    if is_concurrent(new_claim.vector_clock, hist.vector_clock):
-                        concurrent_claims.append(hist)
-                    else:
-                        logger.info(
-                            f"LEVEL 1: Chronological update detected for '{new_claim.entity_hint}'. Dropped."
-                        )
+                with timed("detection.level.completed", funnel_level=1, claim_id=str(new_claim.id)) as ctx:
+                    concurrent_claims = []
+                    for hist in all_other_claims:
+                        if is_concurrent(new_claim.vector_clock, hist.vector_clock):
+                            concurrent_claims.append(hist)
+                    ctx["candidates"] = len(all_other_claims)
+                    ctx["concurrent"] = len(concurrent_claims)
+                    ctx["outcome"] = "escalated" if concurrent_claims else "no_match"
 
                 if not concurrent_claims:
+                    logger.info(
+                        f"LEVEL 1: No concurrent claims for '{new_claim.entity_hint}'. Dropped."
+                    )
                     continue
 
                 level3_candidates = concurrent_claims
 
             # --- LEVEL 3: HNSW VECTOR SEARCH ---
             # Per-category threshold (consumer=0.45, clinical=0.30) instead of 0.40.
-            close_neighbors = []
-            for neighbor in level3_candidates:
-                dist = calculate_cosine_distance(new_claim.embedding, neighbor.embedding)
-                if dist <= thresholds.level_3_cosine:
-                    close_neighbors.append((neighbor, dist))
+            with timed("detection.level.completed", funnel_level=3, claim_id=str(new_claim.id)) as ctx:
+                close_neighbors = []
+                for neighbor in level3_candidates:
+                    dist = calculate_cosine_distance(new_claim.embedding, neighbor.embedding)
+                    if dist <= thresholds.level_3_cosine:
+                        close_neighbors.append((neighbor, dist))
+                ctx["candidates"] = len(level3_candidates)
+                ctx["neighbors"] = len(close_neighbors)
+                ctx["outcome"] = "escalated" if close_neighbors else "no_match"
 
             for neighbor, distance in close_neighbors:
 
@@ -295,25 +315,45 @@ def run_5_level_funnel(system_id: str, updated_entities: list) -> list:
                 # NLI floor is per-category (clinical 0.60, consumer 0.70) with
                 # org-level fallback. Lower floors for high-stakes domains where
                 # missing a contradiction is more costly than a false positive.
-                result = classify_pair(claim_a_str, claim_b_str)
+                with timed("detection.level.completed", funnel_level=4, claim_id=str(new_claim.id)) as ctx:
+                    result = classify_pair(claim_a_str, claim_b_str)
+                    ctx["prediction"] = result["prediction"]
+                    ctx["confidence"] = round(float(result["confidence"]), 4)
+                    level_4_escalates = (
+                        result["prediction"] == "CONTRADICTION"
+                        and result["confidence"] >= thresholds.nli_floor
+                    )
+                    ctx["outcome"] = "escalated" if level_4_escalates else "no_match"
 
-                if result["prediction"] == "CONTRADICTION" and result["confidence"] >= thresholds.nli_floor:
+                if level_4_escalates:
 
                     # --- LEVEL 5: DSPY APEX JUDGE ---
-                    try:
-                        apex_res = apex_judge(
-                            claim_a=claim_a_str,
-                            claim_b=claim_b_str,
-                            topic=new_claim.entity_hint,
-                        )
-                        if "true" not in str(apex_res.is_contradiction).lower():
-                            logger.info(
-                                f"⚖️ Apex Judge Override: NLI flagged '{new_claim.entity_hint}', "
-                                f"but DSPy found conditional compatibility. Alert dropped."
+                    with timed("detection.level.completed", funnel_level=5, claim_id=str(new_claim.id)) as ctx:
+                        apex_overrides = False
+                        try:
+                            apex_res = apex_judge(
+                                claim_a=claim_a_str,
+                                claim_b=claim_b_str,
+                                topic=new_claim.entity_hint,
                             )
-                            continue
-                    except Exception as apex_err:
-                        logger.error(f"Apex Judge failed, falling back to NLI verdict: {apex_err}")
+                            verdict_is_contradiction = "true" in str(apex_res.is_contradiction).lower()
+                            ctx["verdict"] = "contradiction" if verdict_is_contradiction else "compatible"
+                            if not verdict_is_contradiction:
+                                apex_overrides = True
+                                ctx["outcome"] = "no_match"
+                            else:
+                                ctx["outcome"] = "match"
+                        except Exception as apex_err:
+                            ctx["outcome"] = "error"
+                            ctx["error"] = str(apex_err)[:200]
+                            logger.error(f"Apex Judge failed, falling back to NLI verdict: {apex_err}")
+
+                    if apex_overrides:
+                        logger.info(
+                            f"⚖️ Apex Judge Override: NLI flagged '{new_claim.entity_hint}', "
+                            f"but DSPy found conditional compatibility. Alert dropped."
+                        )
+                        continue
 
                     id_a, id_b = sorted([str(new_claim.id), str(neighbor.id)])
 

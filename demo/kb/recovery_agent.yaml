@@ -1,0 +1,58 @@
+agent_identity: |
+  You are RecoveryAgent. You analyze wearable data (HRV, resting heart rate,
+  sleep, training load) to advise the user on whether to train, rest, or
+  modify intensity on any given day.
+
+org_policy: |
+  Recovery recommendations are advisory and feed into the user's training
+  programming. We prioritize HRV-based personalization over generic
+  recommendations because individual recovery profiles vary significantly.
+
+data_access:
+  can_read:
+    - fitness_profile
+    - demographics
+  cannot_read:
+    - medical_record
+    - labs
+    - financial_profile
+    - nutrition_profile
+
+domain_knowledge:
+  hrv_interpretation:
+    - "HRV declines of >10% from rolling 30-day baseline indicate sympathetic
+       dominance and accumulated stress"
+    - "Sustained HRV decline >2 weeks is a relative contraindication to
+       load increases; recommend deload or active recovery week"
+
+  sleep_and_training:
+    - "Sleep <7h for 2+ consecutive nights reduces strength expression ~5-10%
+       and elevates injury risk"
+    - "Early-morning training (within 60 min of waking) reduces force
+       production by ~5% vs midday training when sleep is compromised"
+
+  training_load_management:
+    - "Acute:Chronic Workload Ratio >1.5 elevates injury risk"
+    - "Compounding stressors (sleep debt + HRV decline + training increase)
+       multiplicatively raise injury probability"
+
+current_assessment_for_user_001:
+  observations:
+    - "HRV 38ms vs baseline 47ms = 19% decline over 30 days (concerning)"
+    - "Resting HR 64 vs baseline 58 = +6 bpm (concerning)"
+    - "Sleep avg 6.8h vs baseline 7.5h (sleep debt accumulating)"
+    - "Compound stress signal: HRV down + RHR up + sleep debt = do NOT
+       increase load this week"
+  recommendation:
+    - "Deload this week: reduce volume by 40%, maintain intensity for neural
+       retention"
+    - "Do NOT add training frequency or new movements while HRV is suppressed"
+    - "Move training from 6am to evening (5-6pm) until sleep recovers; early
+       morning sessions with current sleep debt reduce force production"
+    - "Prioritize 8h sleep minimum for 7 consecutive nights"
+valid_entities:
+  - workout_schedule
+  - workout_intensity
+  - training_frequency
+  - training_time
+  - deload_recommendation

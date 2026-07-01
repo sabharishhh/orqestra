@@ -15,6 +15,8 @@ from models.database import Claim, InductionCandidate, CanonicalEntity, Organiza
 from services.config_loader import get_org_config
 from openai import OpenAI
 
+from services.llm_client import chat_completion
+
 logger = get_logger(__name__)
 
 
@@ -41,20 +43,30 @@ def get_claim_text(claim: Claim) -> str:
 # =====================================================
 def llm_suggest_entity_name(representative_claim: str, sample_claims: list) -> dict:
     """Uses LLM to evaluate the cluster and assign a canonical entity identifier."""
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
     prompt = f"""Representative Claim: {representative_claim}
 Other Claims in Cluster: {sample_claims}
 Provide a short, snake_case canonical name for this concept and classify its type 
 (policy, pricing, product, compliance, legal, hr, technical, clinical, general)."""
 
-    response = client.chat.completions.create(
-        model="gpt-5.4-mini",
+    # response = client.chat.completions.create(
+    #     model="gpt-5.4-mini",
+    #     messages=[
+    #         {"role": "system", "content": "You extract canonical entity names and types. Return strictly JSON: {'name': 'snake_case_name', 'type': 'category'}"},
+    #         {"role": "user", "content": prompt}
+    #     ],
+    #     temperature=0.0,
+    # )
+
+    response = chat_completion(
+        purpose="induction",
         messages=[
             {"role": "system", "content": "You extract canonical entity names and types. Return strictly JSON: {'name': 'snake_case_name', 'type': 'category'}"},
             {"role": "user", "content": prompt}
         ],
         temperature=0.0,
     )
+
     raw = response.choices[0].message.content.strip()
     if raw.startswith('```json'):
         raw = raw[7:-3]

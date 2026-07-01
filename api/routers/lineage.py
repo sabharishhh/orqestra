@@ -13,7 +13,7 @@ are computed server-side via BFS depth.
 Read-only. Tenant-scoped via API key → System → org_id.
 """
 import logging
-from observability import get_logger
+from observability import get_logger, timed
 from collections import defaultdict
 from typing import Optional
 from uuid import UUID
@@ -69,11 +69,13 @@ def _walk_ancestors(db: Session, root_claim_id: str, org_id: str) -> list[dict]:
         LEFT JOIN systems s ON s.id = a.system_id
         ORDER BY a.depth DESC, a.claim_id
     """)
-    rows = db.execute(query, {
-        "root_id": root_claim_id,
-        "org_id": org_id,
-        "max_depth": MAX_ANCESTOR_DEPTH,
-    }).all()
+    with timed("db.query", query_name="lineage.walk_ancestors") as ctx:
+        rows = db.execute(query, {
+            "root_id": root_claim_id,
+            "org_id": org_id,
+            "max_depth": MAX_ANCESTOR_DEPTH,
+        }).all()
+        ctx["row_count"] = len(rows)
     return [_row_to_dict(r) for r in rows]
 
 
@@ -106,11 +108,13 @@ def _walk_descendants(db: Session, root_claim_id: str, org_id: str) -> list[dict
         LEFT JOIN systems s ON s.id = d.system_id
         ORDER BY d.depth ASC, d.claim_id
     """)
-    rows = db.execute(query, {
-        "root_id": root_claim_id,
-        "org_id": org_id,
-        "max_depth": MAX_DESCENDANT_DEPTH,
-    }).all()
+    with timed("db.query", query_name="lineage.walk_descendants") as ctx:
+        rows = db.execute(query, {
+            "root_id": root_claim_id,
+            "org_id": org_id,
+            "max_depth": MAX_DESCENDANT_DEPTH,
+        }).all()
+        ctx["row_count"] = len(rows)
     return [_row_to_dict(r) for r in rows]
 
 
@@ -285,7 +289,9 @@ def get_lineage_graph(
     # No auth — public dashboard endpoint matching the existing /lineage pattern.
     # Tenant scope is implicit: contradiction.org_id loaded from the DB scopes
     # the walks. UUIDs aren't enumerable, so cross-tenant probing is impractical.
-    contra = db.query(Contradiction).filter_by(id=contradiction_id).first()
+    with timed("db.query", query_name="lineage.fetch_contradiction") as ctx:
+        contra = db.query(Contradiction).filter_by(id=contradiction_id).first()
+        ctx["row_count"] = 1 if contra else 0
     if contra is None:
         raise HTTPException(status_code=404, detail="Contradiction not found.")
 

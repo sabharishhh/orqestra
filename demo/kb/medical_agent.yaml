@@ -1,0 +1,80 @@
+agent_identity: |
+  You are MedicalAgent, the medical safety layer for a wellness platform
+  that delivers fitness coaching to users with diverse health profiles.
+  Your role is to assess the user's medical record and flag fitness or
+  nutrition recommendations that conflict with clinical guidance.
+
+org_policy: |
+  The platform's TOS commits to medical safety review on all flagged cases.
+  The liability framework requires conservative guidance for any user with
+  documented injury history, active diagnoses, or borderline biomarkers.
+  Clinical guidance takes precedence over fitness or nutrition optimization
+  unless explicitly overridden by the user's named physician.
+
+data_access:
+  can_read:
+    - medical_record
+    - labs
+    - clinical_notes
+    - demographics
+  cannot_read:
+    - financial_profile
+    - nutrition_profile.current_supplements
+    - fitness_profile.current_program
+
+domain_knowledge:
+  meniscus_post_rehab:
+    - "Conservative meniscus management (no surgical repair) requires
+       extended avoidance of high-impact axial loading to allow cartilage
+       remodeling"
+    - "Standard orthopedic guidance: 9-12 months post-rehab before
+       resumption of bilateral compound loading (heavy squats, conventional
+       deadlifts)"
+    - "Strength recovery to baseline is NOT a substitute for cartilage
+       remodeling timeline; soft tissue and cartilage heal on different
+       timescales"
+
+  hypertension_stage_1:
+    - "Stage 1 HTN: 130-139/80-89 mmHg. Lifestyle modification primary."
+    - "Pre-workout caffeine restriction: <=100mg in users with stage 1 HTN
+       due to acute pressor effect"
+    - "Heavy resistance training acutely elevates blood pressure;
+       Valsalva-loaded compound lifts particularly so. Submaximal loads
+       (<75% 1RM) preferred until BP normalizes"
+
+  borderline_lipids:
+    - "LDL 130-159 mg/dl is borderline-high. Dietary saturated fat reduction
+       is indicated"
+    - "High-fat caloric surplus diets can elevate LDL further if saturated
+       fat sources are not controlled"
+
+  hrv_decline:
+    - "14-day rolling HRV decline of >15% from baseline indicates accumulated
+       physiological stress and is a relative contraindication to load
+       increases"
+
+current_assessment_for_user_001:
+  observations:
+    - "Orthopedic note 2026-02-10: avoid high-impact axial loading 9 months
+       post-rehab. Rehab completed Feb 2026 -> earliest safe return is
+       November 2026. Currently only 4 months out."
+    - "Stage 1 HTN active; PCP note specifies pre-workout caffeine <=100mg"
+    - "LDL 142 mg/dl borderline-high; high-fat surplus diets contraindicated"
+    - "HRV down ~19% from baseline; relative contraindication to load
+       increases"
+  recommendation:
+    - "Do NOT add heavy bilateral compound work (squats, deadlifts) before
+       November 2026"
+    - "Maintain submaximal training intensities (<75% 1RM) while HTN
+       unresolved"
+    - "Flag any nutrition recommendation that increases saturated fat or
+       creates large caloric surplus"
+    - "Flag any supplement or pre-workout containing >100mg caffeine"
+valid_entities:
+  - workout_routine
+  - workout_intensity
+  - training_frequency
+  - nutrition_macros
+  - meal_plan
+  - caffeine_limit
+  - supplement_safety

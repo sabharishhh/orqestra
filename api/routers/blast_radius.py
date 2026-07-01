@@ -24,7 +24,7 @@ enumerable so cross-tenant probing is impractical. Re-add verify_api_key
 when the dashboard introduces real login.
 """
 import logging
-from observability import get_logger
+from observability import get_logger, timed
 from typing import Optional
 from uuid import UUID
 
@@ -103,11 +103,13 @@ def _walk_descendants(db: Session, root_claim_id: str, org_id: str) -> list[dict
         LEFT JOIN systems s ON s.id = d.system_id
         ORDER BY d.depth, d.claim_id;
     """)
-    rows = db.execute(query, {
-        "root_id":  root_claim_id,
-        "org_id":   org_id,
-        "max_depth": MAX_DEPTH,
-    }).all()
+    with timed("db.query", query_name="blast_radius.walk_descendants") as ctx:
+        rows = db.execute(query, {
+            "root_id":  root_claim_id,
+            "org_id":   org_id,
+            "max_depth": MAX_DEPTH,
+        }).all()
+        ctx["row_count"] = len(rows)
 
     return [
         {
@@ -131,11 +133,13 @@ def _entity_cost_lookup(db: Session, org_id: str) -> dict[str, int]:
     default when an entity_hint isn't in the canonical vocabulary (orphan
     or auto-induced).
     """
-    rows = (
-        db.query(CanonicalEntity.canonical_name, CanonicalEntity.cost_high_usd)
-          .filter_by(org_id=org_id)
-          .all()
-    )
+    with timed("db.query", query_name="blast_radius.entity_costs") as ctx:
+        rows = (
+            db.query(CanonicalEntity.canonical_name, CanonicalEntity.cost_high_usd)
+              .filter_by(org_id=org_id)
+              .all()
+        )
+        ctx["row_count"] = len(rows)
     return {name: cost for name, cost in rows}
 
 
@@ -199,7 +203,9 @@ def get_blast_radius(
     enumerable, so cross-tenant probing is impractical. Auth re-introduced
     when the dashboard adds login.
     """
-    contra = db.query(Contradiction).filter_by(id=contradiction_id).first()
+    with timed("db.query", query_name="blast_radius.fetch_contradiction") as ctx:
+        contra = db.query(Contradiction).filter_by(id=contradiction_id).first()
+        ctx["row_count"] = 1 if contra else 0
     if contra is None:
         raise HTTPException(status_code=404, detail="Contradiction not found.")
 

@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from models.database import CanonicalEntity, System
 from services.config_loader import _redis, CACHE_TTL_SECONDS
+from services.llm_client import chat_completion
+from services.embed_client import embed_batch
+
 
 logger = get_logger(__name__)
 
@@ -138,11 +141,20 @@ def run_extraction(text: str, system_id: str) -> List[Dict[str, Any]]:
     finally:
         db.close()
 
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-    # --- PHASE 1: SPO Extraction ---
-    response = client.chat.completions.create(
-        model="gpt-5.4-mini",
+    # # --- PHASE 1: SPO Extraction ---
+    # response = client.chat.completions.create(
+    #     model="gpt-5.4-mini",
+    #     messages=[
+    #         {"role": "system", "content": system_prompt},
+    #         {"role": "user", "content": f"Extract facts from this text:\n\n{text}"},
+    #     ],
+    #     temperature=0.0,
+    # )
+
+    response = chat_completion(
+        purpose="extraction",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Extract facts from this text:\n\n{text}"},
@@ -170,11 +182,7 @@ def run_extraction(text: str, system_id: str) -> List[Dict[str, Any]]:
         f"{c.get('subject', '')} {c.get('predicate', '')} {c.get('object', '')}. Context: {c.get('context', '')}"
         for c in claims_data
     ]
-    emb_response = client.embeddings.create(
-        input=texts_to_embed,
-        model="text-embedding-3-small",
-    )
-    embeddings = [data.embedding for data in sorted(emb_response.data, key=lambda x: x.index)]
+    embeddings = embed_batch(texts_to_embed)
 
     embedded_claims = []
     for claim, emb in zip(claims_data, embeddings):

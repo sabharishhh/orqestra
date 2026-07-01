@@ -59,6 +59,7 @@ services:
       - ORQESTRA_NLI_BACKEND=openai
       - ORQESTRA_ENV=prod
       - ORQESTRA_LOG_LEVEL=INFO
+      - ORQESTRA_METRICS_ENABLED=true
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,6 +143,110 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+  fitness_agent:
+    build:
+      context: .
+      dockerfile: demo/agents/Dockerfile
+    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8101 --reload
+    ports:
+      - "8101:8101"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    env_file:
+      - demo/.env.fitness_agent
+    environment:
+      - AGENT_NAME=FitnessAgent
+      - KB_PATH=/app/demo/kb/fitness_agent.yaml
+      - USER_PROFILE=/app/demo/data/user_profile.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=8101
+    depends_on:
+      - api
+
+  medical_agent:
+    build:
+      context: .
+      dockerfile: demo/agents/Dockerfile
+    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8102 --reload
+    ports:
+      - "8102:8102"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    env_file:
+      - demo/.env.medical_agent
+    environment:
+      - AGENT_NAME=MedicalAgent
+      - KB_PATH=/app/demo/kb/medical_agent.yaml
+      - USER_PROFILE=/app/demo/data/user_profile.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=8102
+    depends_on:
+      - api
+
+  nutrition_agent:
+    build:
+      context: .
+      dockerfile: demo/agents/Dockerfile
+    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8103 --reload
+    ports:
+      - "8103:8103"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    env_file:
+      - demo/.env.nutrition_agent
+    environment:
+      - AGENT_NAME=NutritionAgent
+      - KB_PATH=/app/demo/kb/nutrition_agent.yaml
+      - USER_PROFILE=/app/demo/data/user_profile.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=8103
+    depends_on:
+      - api
+
+  recovery_agent:
+    build:
+      context: .
+      dockerfile: demo/agents/Dockerfile
+    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8104 --reload
+    ports:
+      - "8104:8104"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    env_file:
+      - demo/.env.recovery_agent
+    environment:
+      - AGENT_NAME=RecoveryAgent
+      - KB_PATH=/app/demo/kb/recovery_agent.yaml
+      - USER_PROFILE=/app/demo/data/user_profile.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=8104
+    depends_on:
+      - api
+
+  budget_agent:
+    build:
+      context: .
+      dockerfile: demo/agents/Dockerfile
+    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8105 --reload
+    ports:
+      - "8105:8105"
+    volumes:
+      - ./:/app
+      - /app/.venv
+    env_file:
+      - demo/.env.budget_agent
+    environment:
+      - AGENT_NAME=BudgetAgent
+      - KB_PATH=/app/demo/kb/budget_agent.yaml
+      - USER_PROFILE=/app/demo/data/user_profile.yaml
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=8105
+    depends_on:
+      - api
 
   frontend:
     build: ./frontend

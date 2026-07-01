@@ -15,6 +15,7 @@ from observability import get_logger
 import httpx
 from openai import OpenAI, APIConnectionError, RateLimitError, APITimeoutError
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+from services.llm_client import chat_completion
 
 logger = get_logger(__name__)
 
@@ -53,15 +54,24 @@ directive opposites (must vs must not, include vs exclude)."""
     reraise=True
 )
 def _classify_openai(text_a: str, text_b: str) -> dict:
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model="gpt-5.4-mini",
+    # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # response = client.chat.completions.create(
+    #     model="gpt-5.4-mini",
+    #     messages=[
+    #         {"role": "system", "content": NLI_SYSTEM_PROMPT},
+    #         {"role": "user", "content": f"Claim A: \"{text_a}\"\n\nClaim B: \"{text_b}\""}
+    #     ],
+    #     temperature=0.0,
+    # )
+    response = chat_completion(
+        purpose="nli_fallback",
         messages=[
             {"role": "system", "content": NLI_SYSTEM_PROMPT},
             {"role": "user", "content": f"Claim A: \"{text_a}\"\n\nClaim B: \"{text_b}\""}
         ],
         temperature=0.0,
     )
+
     raw = response.choices[0].message.content.strip()
     if raw.startswith("```json"): raw = raw[7:]
     if raw.endswith("```"): raw = raw[:-3]

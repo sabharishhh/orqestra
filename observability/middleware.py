@@ -55,18 +55,21 @@ class CorrelationIdMiddleware:
         try:
             await self.app(scope, receive, send_wrapper)
         finally:
-            duration_ms = round((time.perf_counter() - start) * 1000, 2)
+            duration_s = time.perf_counter() - start
+            duration_ms = round(duration_s * 1000, 2)
             path_template = _route_template(scope) or scope.get("path", "")
+            method = scope.get("method") or "GET"
             logger.info(
                 "request.completed",
-                method=scope.get("method"),
+                method=method,
                 path=path_template,
                 status_code=status_holder["code"],
                 duration_ms=duration_ms,
             )
+            from observability import metrics
+            metrics.observe_http_request(method, path_template, status_holder["code"], duration_s)
             structlog.contextvars.clear_contextvars()
             request_id_ctx.reset(token)
-
 
 def _route_template(scope: dict) -> str | None:
     """Rebuild the parameterized route path from the request's path_params."""

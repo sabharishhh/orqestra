@@ -10,6 +10,8 @@ from core.database import SessionLocal
 from models.database import Contradiction, Claim, Resolution, System
 from openai import OpenAI, APIConnectionError, RateLimitError, APITimeoutError
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+from services.llm_client import chat_completion
+
 
 logger = get_logger(__name__)
 
@@ -70,9 +72,18 @@ def _format_cost(cost_usd: int, severity: str) -> str:
 )
 def safe_llm_resolution(prompt: str) -> dict:
     """Executes the LLM call with exponential backoff protection."""
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model="gpt-5.4-mini",
+    # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    # response = client.chat.completions.create(
+    #     model="gpt-5.4-mini",
+    #     messages=[
+    #         {"role": "system", "content": "You resolve AI contradictions based strictly on the provided causal history. Do not invent timelines."},
+    #         {"role": "user", "content": prompt}
+    #     ],
+    #     temperature=0.0,
+    # )
+
+    response = chat_completion(
+        purpose="resolution",
         messages=[
             {"role": "system", "content": "You resolve AI contradictions based strictly on the provided causal history. Do not invent timelines."},
             {"role": "user", "content": prompt}
