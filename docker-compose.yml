@@ -147,7 +147,7 @@ services:
     build:
       context: .
       dockerfile: demo/agents/Dockerfile
-    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8101 --reload
+    command: uvicorn demo.agents.langgraph_agent:app --host 0.0.0.0 --port 8101 --reload
     ports:
       - "8101:8101"
     volumes:
@@ -161,6 +161,7 @@ services:
       - USER_PROFILE=/app/demo/data/user_profile.yaml
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=8101
+      - ORQESTRA_CANON_ENABLED=${ORQESTRA_CANON_ENABLED:-true}
     depends_on:
       - api
 
@@ -168,7 +169,7 @@ services:
     build:
       context: .
       dockerfile: demo/agents/Dockerfile
-    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8102 --reload
+    command: uvicorn demo.agents.langgraph_agent:app --host 0.0.0.0 --port 8102 --reload
     ports:
       - "8102:8102"
     volumes:
@@ -182,6 +183,7 @@ services:
       - USER_PROFILE=/app/demo/data/user_profile.yaml
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=8102
+      - ORQESTRA_CANON_ENABLED=${ORQESTRA_CANON_ENABLED:-true}
     depends_on:
       - api
 
@@ -189,7 +191,7 @@ services:
     build:
       context: .
       dockerfile: demo/agents/Dockerfile
-    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8103 --reload
+    command: uvicorn demo.agents.langgraph_agent:app --host 0.0.0.0 --port 8103 --reload
     ports:
       - "8103:8103"
     volumes:
@@ -203,6 +205,7 @@ services:
       - USER_PROFILE=/app/demo/data/user_profile.yaml
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=8103
+      - ORQESTRA_CANON_ENABLED=${ORQESTRA_CANON_ENABLED:-true}
     depends_on:
       - api
 
@@ -210,7 +213,7 @@ services:
     build:
       context: .
       dockerfile: demo/agents/Dockerfile
-    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8104 --reload
+    command: uvicorn demo.agents.langgraph_agent:app --host 0.0.0.0 --port 8104 --reload
     ports:
       - "8104:8104"
     volumes:
@@ -224,6 +227,7 @@ services:
       - USER_PROFILE=/app/demo/data/user_profile.yaml
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=8104
+      - ORQESTRA_CANON_ENABLED=${ORQESTRA_CANON_ENABLED:-true}
     depends_on:
       - api
 
@@ -231,7 +235,7 @@ services:
     build:
       context: .
       dockerfile: demo/agents/Dockerfile
-    command: uvicorn demo.agents.agent_service:app --host 0.0.0.0 --port 8105 --reload
+    command: uvicorn demo.agents.langgraph_agent:app --host 0.0.0.0 --port 8105 --reload
     ports:
       - "8105:8105"
     volumes:
@@ -245,6 +249,7 @@ services:
       - USER_PROFILE=/app/demo/data/user_profile.yaml
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PORT=8105
+      - ORQESTRA_CANON_ENABLED=${ORQESTRA_CANON_ENABLED:-true}
     depends_on:
       - api
 

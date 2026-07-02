@@ -3,25 +3,28 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from models.database import Contradiction
+from models.database import Contradiction, System
+from api.auth import verify_api_key
 
 router = APIRouter()
 
 
 @router.get("/summary")
-def get_roi_summary(db: Session = Depends(get_db)):
+def get_roi_summary(
+    system: System = Depends(verify_api_key),
+    db: Session = Depends(get_db),
+):
     """
-    Aggregates the total business risk captured by the Orqestra platform.
+    Aggregates the caller's org's total business risk.
 
-    Sprint 3.5: cost is now persisted per-contradiction by the detector
-    (Sprint 3.1) via services.severity_scorer, which reads per-entity
-    cost_high_usd / cost_critical_usd from the canonical_entities table.
-    No hardcoded multipliers — the dashboard number reflects whatever the
-    org has configured.
+    Sprint 8 Task 4: previously returned global aggregates across every
+    org's contradictions. Now org-scoped via verify_api_key.
     """
-    open_filter = (Contradiction.status == "open")
+    org_id = system.org_id
+    open_filter = (
+        (Contradiction.status == "open") & (Contradiction.org_id == org_id)
+    )
 
-    # Severity breakdown — single grouped query instead of four separate counts
     severity_rows = (
         db.query(Contradiction.severity, func.count(Contradiction.id))
           .filter(open_filter)
@@ -35,7 +38,6 @@ def get_roi_summary(db: Session = Depends(get_db)):
 
     active_total = sum(severity_breakdown.values())
 
-    # Real cost aggregation from per-contradiction cost_usd
     total_liability = (
         db.query(func.coalesce(func.sum(Contradiction.cost_usd), 0))
           .filter(open_filter)

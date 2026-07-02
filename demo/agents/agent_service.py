@@ -164,10 +164,15 @@ def _post_claim_to_orqestra(claim: dict) -> str:
 
 @app.get("/health")
 def health() -> dict:
+    canon_env = os.environ.get("ORQESTRA_CANON_ENABLED", "true").strip().lower()
+    canon_enabled = canon_env not in ("false", "0", "off", "no")
     return {
         "agent": AGENT_NAME,
         "kb_loaded": bool(KB),
         "scoped_keys": list(SCOPED_PROFILE.keys()),
+        "executor": "langgraph",
+        "valid_entities": VALID_ENTITIES,
+        "canon_enabled": canon_enabled,
     }
 
 

@@ -1,6 +1,11 @@
 """
 Seed (or upsert) an organization from a vertical preset YAML.
 
+Sprint 8: also creates the org's 'default' canon store on first seed,
+and auto-subscribes any systems that already exist under the org at
+precedence 0. Idempotent — reseeding never duplicates the store or
+subscriptions.
+
 Usage:
     docker compose exec api python -m scripts.seed_org \
         --name "Demo Fitness" \
@@ -9,41 +14,39 @@ Usage:
 
     docker compose exec api python -m scripts.seed_org \
         --name "Acme Health" --slug acme-health --preset clinical
-
-The CLI is idempotent — re-running with the same slug updates the org's
-preset, config, canonical entities, aliases, category thresholds, and
-PII allowlist to match the YAML. Existing operational data (claims,
-contradictions, OBG) is never touched.
 """
 import argparse
 import logging
-from observability import get_logger
 import sys
 from pathlib import Path
 from typing import Optional
 
 import yaml
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from core.database import SessionLocal
 from models.database import (
-    Organization,
     CanonicalEntity,
-    EntityAlias,
-    DetectionConfig,
+    CanonStore,
     CategoryThreshold,
+    DetectionConfig,
+    EntityAlias,
+    Organization,
     PiiAllowlistToken,
+    System,
+    SystemCanonSubscription,
 )
+from observability import get_logger
 
 logging.basicConfig(level=logging.INFO, format="[seed_org] %(message)s")
 logger = get_logger(__name__)
 
 PRESETS_DIR = Path(__file__).resolve().parent.parent / "presets"
 
+DEFAULT_STORE_NAME = "default"
+
 
 def load_preset(preset_name: str) -> dict:
-    """Load a vertical preset YAML by name."""
     path = PRESETS_DIR / f"{preset_name}.yaml"
     if not path.exists():
         available = sorted(p.stem for p in PRESETS_DIR.glob("*.yaml"))
@@ -76,6 +79,59 @@ def upsert_organization(db: Session, name: str, slug: str, preset_name: str, des
     return org
 
 
+def upsert_default_store(db: Session, org: Organization) -> CanonStore:
+    """
+    Ensure the org has its 'default' canon store. Sprint 8 machinery.
+    Idempotent: returns the existing store if already present.
+    """
+    store = (
+        db.query(CanonStore)
+          .filter_by(org_id=org.id, name=DEFAULT_STORE_NAME)
+          .first()
+    )
+    if store:
+        return store
+    store = CanonStore(
+        org_id=org.id,
+        name=DEFAULT_STORE_NAME,
+        description=f"Default canon store for {org.slug} (auto-created by seed_org).",
+        owner_system_id=None,
+    )
+    db.add(store)
+    db.flush()
+    logger.info(f"Created default canon store for {org.slug}: {store.id}")
+    return store
+
+
+def ensure_all_systems_subscribed(db: Session, org: Organization, default_store: CanonStore):
+    """
+    Auto-subscribe every System in the org to the default store at rank 0.
+    Idempotent: skips systems already subscribed. Won't create rows for
+    systems that don't exist yet — those get subscribed when they're
+    created (out of scope for this script; a follow-up will hook it into
+    the systems router).
+    """
+    systems = db.query(System).filter_by(org_id=org.id).all()
+    created = 0
+    for s in systems:
+        exists = (
+            db.query(SystemCanonSubscription)
+              .filter_by(system_id=s.id, store_id=default_store.id)
+              .first()
+        )
+        if exists:
+            continue
+        db.add(SystemCanonSubscription(
+            system_id=s.id,
+            store_id=default_store.id,
+            precedence_rank=0,
+        ))
+        created += 1
+    if created:
+        db.flush()
+        logger.info(f"Subscribed {created} system(s) to default store at rank 0")
+
+
 def upsert_detection_config(db: Session, org: Organization, cfg: dict):
     row = db.query(DetectionConfig).filter_by(org_id=org.id).first()
     if not row:
@@ -95,10 +151,12 @@ def upsert_category_thresholds(db: Session, org: Organization, items: list[dict]
         category = item["category"]
         row = db.query(CategoryThreshold).filter_by(org_id=org.id, category=category).first()
         if not row:
-            row = CategoryThreshold(org_id=org.id, category=category,
-                                    level_0_cosine=item["level_0_cosine"],
-                                    level_3_cosine=item["level_3_cosine"],
-                                    nli_floor=item.get("nli_floor"))
+            row = CategoryThreshold(
+                org_id=org.id, category=category,
+                level_0_cosine=item["level_0_cosine"],
+                level_3_cosine=item["level_3_cosine"],
+                nli_floor=item.get("nli_floor"),
+            )
             db.add(row)
         else:
             row.level_0_cosine = item["level_0_cosine"]
@@ -108,13 +166,27 @@ def upsert_category_thresholds(db: Session, org: Organization, items: list[dict]
     logger.info(f"category_thresholds: {len(items)} categories")
 
 
-def upsert_canonical_entities(db: Session, org: Organization, items: list[dict]):
+def upsert_canonical_entities(
+    db: Session,
+    org: Organization,
+    default_store: CanonStore,
+    items: list[dict],
+):
+    """
+    Sprint 8: canonical entities are now per-store. Presets seed into the
+    org's default store. Uniqueness is (store_id, canonical_name).
+    """
     for item in items:
         name = item["name"]
-        ent = db.query(CanonicalEntity).filter_by(org_id=org.id, canonical_name=name).first()
+        ent = (
+            db.query(CanonicalEntity)
+              .filter_by(store_id=default_store.id, canonical_name=name)
+              .first()
+        )
         if not ent:
             ent = CanonicalEntity(
                 org_id=org.id,
+                store_id=default_store.id,
                 canonical_name=name,
                 description=item.get("description"),
                 category=item.get("category", "general"),
@@ -135,7 +207,7 @@ def upsert_canonical_entities(db: Session, org: Organization, items: list[dict])
             ent.cost_high_usd = item.get("cost_high_usd", ent.cost_high_usd)
             db.flush()
 
-        # Refresh aliases — delete current, re-insert from YAML to keep in sync
+        # Refresh aliases wholesale from YAML
         db.query(EntityAlias).filter_by(canonical_entity_id=ent.id).delete()
         db.flush()
         aliases = item.get("aliases", []) or []
@@ -146,11 +218,10 @@ def upsert_canonical_entities(db: Session, org: Organization, items: list[dict])
                 alias=alias.lower().strip().replace(" ", "_"),
             ))
         db.flush()
-    logger.info(f"canonical_entities: {len(items)} entities (+ aliases)")
+    logger.info(f"canonical_entities: {len(items)} entities in default store (+ aliases)")
 
 
 def upsert_pii_allowlist(db: Session, org: Organization, tokens: list[str]):
-    # Replace wholesale — preset is the source of truth
     db.query(PiiAllowlistToken).filter_by(org_id=org.id).delete()
     db.flush()
     for tok in tokens:
@@ -163,19 +234,30 @@ def seed(name: str, slug: str, preset_name: str, description: Optional[str] = No
     preset = load_preset(preset_name)
     db: Session = SessionLocal()
     try:
-        org = upsert_organization(db, name=name, slug=slug, preset_name=preset_name, description=description)
+        org = upsert_organization(
+            db, name=name, slug=slug, preset_name=preset_name, description=description
+        )
+
+        # Sprint 8: ensure default store exists BEFORE canonical entities are seeded.
+        default_store = upsert_default_store(db, org)
 
         if cfg := preset.get("detection_config"):
             upsert_detection_config(db, org, cfg)
         if items := preset.get("category_thresholds"):
             upsert_category_thresholds(db, org, items)
         if items := preset.get("canonical_entities"):
-            upsert_canonical_entities(db, org, items)
+            upsert_canonical_entities(db, org, default_store, items)
         if tokens := preset.get("pii_allowlist"):
             upsert_pii_allowlist(db, org, tokens)
 
+        # Sprint 8: subscribe existing systems to the default store.
+        ensure_all_systems_subscribed(db, org, default_store)
+
         db.commit()
-        logger.info(f"✅ Org seeded: name='{name}' slug='{slug}' preset='{preset_name}' id={org.id}")
+        logger.info(
+            f"✅ Org seeded: name='{name}' slug='{slug}' preset='{preset_name}' "
+            f"id={org.id} default_store_id={default_store.id}"
+        )
         return str(org.id)
     except Exception as e:
         db.rollback()
@@ -192,7 +274,6 @@ def main():
     parser.add_argument("--preset", required=True, help="Preset YAML stem under presets/, e.g. 'consumer'")
     parser.add_argument("--description", default=None, help="Optional human-readable description")
     args = parser.parse_args()
-
     try:
         seed(name=args.name, slug=args.slug, preset_name=args.preset, description=args.description)
     except Exception:

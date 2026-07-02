@@ -1,0 +1,42 @@
+# 1. Edit the scenario file to bump wait to 90s. 
+#    (Do this in your editor.)
+
+# 2. Reset baseline so we start from empty SCCG again.
+docker compose exec api python -m scripts.reset_demo_baseline
+
+# 3. Verify fleet is at Canon ON.
+docker compose exec api python -c "
+import requests
+for name, port in {'fitness_agent': 8101, 'medical_agent': 8102, 'nutrition_agent': 8103, 'recovery_agent': 8104, 'budget_agent': 8105}.items():
+    r = requests.get(f'http://{name}:{port}/health', timeout=5).json()
+    print(f'{name:16s} canon_enabled={r.get(\"canon_enabled\")}')
+"
+
+# If any show False:
+# docker compose up -d --force-recreate fitness_agent medical_agent nutrition_agent recovery_agent budget_agent
+# sleep 8
+
+# 4. Canon ON — 5 runs. ~7.5 min.
+docker compose exec api python -m demo.orchestrator.measure_canon_effect --phase canon_on --runs 5
+
+# 5. Flip to Canon OFF.
+ORQESTRA_CANON_ENABLED=false docker compose up -d --force-recreate fitness_agent medical_agent nutrition_agent recovery_agent budget_agent
+sleep 8
+
+# 6. Verify off.
+docker compose exec api python -c "
+import requests
+for name, port in {'fitness_agent': 8101, 'medical_agent': 8102, 'nutrition_agent': 8103, 'recovery_agent': 8104, 'budget_agent': 8105}.items():
+    r = requests.get(f'http://{name}:{port}/health', timeout=5).json()
+    print(f'{name:16s} canon_enabled={r.get(\"canon_enabled\")}')
+"
+
+# 7. Canon OFF — 5 runs. ~7.5 min.
+docker compose exec api python -m demo.orchestrator.measure_canon_effect --phase canon_off --runs 5
+
+# 8. Flip back to Canon ON.
+docker compose up -d --force-recreate fitness_agent medical_agent nutrition_agent recovery_agent budget_agent
+sleep 8
+
+# 9. Report.
+docker compose exec api python -m demo.orchestrator.measure_canon_effect --phase report

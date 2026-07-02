@@ -1,0 +1,59 @@
+# demo/scenarios/acl_recovery_conflict.yaml
+#
+# Post-ACL-repair user asking their coaching fleet whether they can
+# escalate training. The fleet should surface a workout_routine
+# contradiction: fitness/budget agents pushing toward progressive
+# overload vs. medical/recovery agents holding the line on
+# post-op restrictions.
+#
+# Sprint 10 will use this same scenario twice — Canon-on and Canon-off —
+# to measure whether declared truth reduces the noise.
+
+scenario_id: acl_recovery_conflict
+description: |
+  User is 4 weeks post-op ACL repair (per user_profile.yaml).
+  They ask each agent for guidance on next week's plan.
+  A workout_routine contradiction is expected between
+  medical/recovery and fitness/budget streams.
+
+# Optional: which org this scenario runs against.
+org_slug: demo-fitness
+
+# Optional: seconds to wait for extraction/write to complete after
+# firing before summarizing what emerged. Longer = catches slower
+# contradiction detections; shorter = faster iteration.
+post_fire_wait_seconds: 90
+
+# Agents to fire, in the order shown in the report.
+# Each entry names the agent and the trigger phrase it should receive.
+# host + port are looked up from a shared config map in the orchestrator
+# (not the scenario file — those are infra-level, not scenario-level).
+agents:
+  - name: FitnessAgent
+    trigger: |
+      User wants to escalate training this week — they feel strong.
+      Recommend the workout routine you would prescribe. Be specific
+      about intensity and volume.
+
+  - name: MedicalAgent
+    trigger: |
+      User is 4 weeks post-op ACL repair and asking about training
+      escalation. Assess medical safety for heavy compound lifts,
+      caffeine, and general progression this week.
+
+  - name: NutritionAgent
+    trigger: |
+      User is training hard on an ACL recovery timeline. Recommend
+      the daily meal plan and macro targets you would prescribe
+      given recovery status.
+
+  - name: RecoveryAgent
+    trigger: |
+      User's HRV is trending down 19% and they want to train harder
+      this week. Recommend the recovery protocol you would prescribe.
+
+  - name: BudgetAgent
+    trigger: |
+      User is asking whether to increase spend on supplements and
+      recovery tech to support harder training this week. Recommend
+      appropriate monthly spend.
